@@ -26,7 +26,7 @@ if __name__ == "__main__":
     rpca = RobustPCA(max_iter=2000, lambda_=None, device=DEVICE) 
     
     ae = RobustDeepAutoencoder().to(DEVICE)
-    ae.simple_fit(test_loader, epochs=350, lr=1e-4, patience=10, tol=5, lambda_p=0.1)
+    ae.simple_fit(test_loader, epochs=350, lr=1e-4, patience=10, tol=5, lambda_=0.1)
     ae.plot_training_curve()
 
 
