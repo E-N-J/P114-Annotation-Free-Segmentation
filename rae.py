@@ -59,7 +59,7 @@ class RobustDeepAutoencoder(nn.Module):
         self.l2_loss_history = []
         self.l1_loss_history = []
         
-    def robust_loss(self, x, L_pred, lambda_p=0.1):
+    def robust_loss(self, x, L_pred, lambda_=0.1):
         """
         Loss = ||S|| + lambda * ||S||_1
         Assuming S = x - L (residual), we want to minimize L2 of reconstruction
@@ -69,7 +69,7 @@ class RobustDeepAutoencoder(nn.Module):
         l2_loss = torch.norm(residual, p=2)
         l1_loss = torch.norm(residual, p=1)
         
-        loss = l2_loss + lambda_p * l1_loss
+        loss = l2_loss + lambda_ * l1_loss
         return loss, l2_loss, l1_loss
 
     def forward(self, x):
@@ -84,7 +84,7 @@ class RobustDeepAutoencoder(nn.Module):
         L_pred = self.decoder(x_reshaped)
         return L_pred
     
-    def simple_fit(self, loader, epochs=10, lr=1e-3, patience=5, tol=5, lambda_p=0.1):
+    def simple_fit(self, loader, epochs=10, lr=1e-3, patience=5, tol=5, lambda_=0.1):
         """
         Autoencoder training with early stopping based on a simple robust loss (not specified in paper).
         """
@@ -112,9 +112,7 @@ class RobustDeepAutoencoder(nn.Module):
                 
                 L_pred = self(x)
                 
-                loss = l2_loss + (lambda_p * l1_loss)
-                
-                loss, l2_loss, l1_loss = self.robust_loss(x, L_pred, lambda_p=lambda_p)
+                loss, l2_loss, l1_loss = self.robust_loss(x, L_pred, lambda_=lambda_)
                 
                 loss.backward()
                 optimizer.step()
@@ -155,7 +153,7 @@ class RobustDeepAutoencoder(nn.Module):
             
             
         print(f"Training Complete. Final Avg Losses: {best_avgs}")
-    
+      
     def plot_training_curve(self):
         """
         Visualizes the training loss over epochs.
