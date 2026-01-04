@@ -7,12 +7,12 @@ import numpy as np
 
 def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.device("cpu"), results_root="./results"):
     ae_model.eval()
-    
+    # dataloader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset))
     batch = next(iter(dataloader))
-    x_cpu, _ = batch 
+    x_cpu, _, _ = batch 
     batch_size = x_cpu.shape[0]
     print(f"\nEvaluating on batch of size {batch_size}...")
-
+    results_root = os.path.abspath(results_root)
     subject_dir = os.path.join(results_root, f"Subject_{subject_id}")
     lowrank_dir = os.path.join(subject_dir, "LowRank")
     sparse_dir = os.path.join(subject_dir, "Sparse")
@@ -83,8 +83,8 @@ def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.d
         ax[1,2].axis('off')
 
         # Autoencoder
-        show_img(ax[2,0], L_ae[idx], "Autoencoder L")
-        show_img(ax[2,1], abs(S_ae[idx]), "AE S (Residual)")
+        show_img(ax[2,0], L_ae[idx], "RDA L")
+        show_img(ax[2,1], abs(S_ae[idx]), "RDA S")
         ax[2,2].axis('off')
         
         fig.canvas.draw_idle()
