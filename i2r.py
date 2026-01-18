@@ -36,27 +36,37 @@ if __name__ == "__main__":
         batch_size=len(i2r_data),
         shuffle=False
     )
-
-    rpca = RobustPCA(max_iter=2000, lambda_=None, device=DEVICE) 
-    ae = RobustDeepAutoencoder(latent_dim=3, dropout=0, std=0).to(DEVICE)
+    ae_params = {
+        'latent_dim': 8,
+        'dropout': 0.33,
+        'std': 0.5,
+        'lr': 2e-4,
+        'lambda_': 0.003,
+        'outer_epochs': 12,
+        'inner_epochs': 70,
+    }
+    rpca = RobustPCA(max_iter=6000, lambda_=None, device=DEVICE, tol=1e-7) 
+    ae = RobustDeepAutoencoder(latent_dim=ae_params['latent_dim'], dropout=ae_params['dropout'], std=ae_params['std']).to(DEVICE)
+    print(f"Using parameters: {ae_params}\n")
     
     ae.fit_admm(
         i2r_loader,
-        lr=2e-4,
-        lambda_=0.1,
-        outer_epochs=2,
-        inner_epochs=10,
+        lr=ae_params['lr'],
+        lambda_=ae_params['lambda_'],
+        outer_epochs=ae_params['outer_epochs'],
+        inner_epochs=ae_params['inner_epochs'],
         # norm_type='l21'
     )
-    ae.plot_training_curve(log_scale=True)
+    ae.plot_training_curve(display=False, log_scale=True)
     ae.eval()
-    evaluate_models(test_loader, rpca, ae, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")    
+    # evaluate_models(i2r_loader, rpca, ae, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
+    evaluate_models(test_loader, rpca, ae, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
     
-    # print("Do you want to save the trained Autoencoder model? (y/n): ", end="")
-    # save_choice = input().strip().lower()
-    # if save_choice == 'y':
-    #     model_name = "rae_model_2"
-    #     torch.save(ae.state_dict(), f"{model_name}.pth")
-    #     print(f"Model saved as {model_name}.pth")
-    # else:
-    #     print("Model not saved.")
+    print("Do you want to save the trained Autoencoder model? (y/n): ", end="")
+    save_choice = input().strip().lower()
+    if save_choice == 'y':
+        model_name = "rda_model_i2r_3"
+        torch.save(ae.state_dict(), f"{model_name}.pth")
+        print(f"Model saved as {model_name}.pth")
+    else:
+        print("Model not saved.")
