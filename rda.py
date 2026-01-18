@@ -158,7 +158,7 @@ class RobustDeepAutoencoder(nn.Module):
             
         print(f"Training Complete. Final Avg Losses: {best_avgs}")
             
-    def plot_training_curve(self, log_scale=False):
+    def plot_training_curve(self, display=True, log_scale=False):
         """
         Visualizes the training loss over epochs.
         
@@ -195,7 +195,10 @@ class RobustDeepAutoencoder(nn.Module):
         
         plt.tight_layout()
         plt.savefig('rae_training_curve.png', dpi=300)
-        plt.show()
+        if display:
+            plt.show()
+        else:
+            plt.close(fig)
     
     def fit_admm(self, loader, outer_epochs=20, inner_epochs=50, 
                        lr=1e-3, lambda_=1.0, tol=1e-7, norm_type='l1'):
