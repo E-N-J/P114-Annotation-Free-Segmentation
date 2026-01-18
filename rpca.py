@@ -17,13 +17,21 @@ class RobustPCA:
     def soft_threshold(self, z, tau):
         return torch.sign(z) * torch.maximum(torch.abs(z) - tau, torch.tensor(0.0).to(z.device))
 
-    def decompose(self, x, fast=False):
+    def decompose(self, x, fast=False, cols=False):
         """
         Input x: (Batch, Channels, Height, Width) or (Batch, Flattened)
         """
         x = x.to(self.device)
         original_shape = x.shape
-        x_mat = x.view(x.size(0), -1) 
+
+        flat_x = x.view(x.size(0), -1)
+       
+        if cols:
+            x_mat = flat_x.t() 
+        else:
+            x_mat = flat_x
+            
+        x_mat_norm = torch.norm(x_mat, 'fro')
         
         n1, n2 = x_mat.shape
         
@@ -67,14 +75,19 @@ class RobustPCA:
                 self.mu = min(self.mu * rho, mu_bar)
             
             # [Step 4]: Convergence check
-            error = torch.norm(residual, 'fro') / torch.norm(x_mat, 'fro')
+            res_norm = torch.norm(residual, 'fro')
+            error = res_norm / x_mat_norm
             min_error = min(min_error, error)
             
             loop.set_postfix({'Error': f'{error.item():.2e}', 'Min Error': f'{min_error.item():.2e}'})
-            if error < self.tol:
+            if error <= self.tol:
                 loop.close()
                 print(f"RPCA converged in {k+1} iterations with error {error.item():.2e}")
                 break
+            
+        if cols:
+            L = L.t()
+            S = S.t()
         
         return L.view(original_shape), S.view(original_shape)
 
