@@ -13,7 +13,7 @@ def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.d
     batch_size = x_cpu.shape[0]
     print(f"\nEvaluating on batch of size {batch_size}...")
     results_root = os.path.abspath(results_root)
-    subject_dir = os.path.join(results_root, f"Subject_{subject_id}")
+    subject_dir = os.path.join(results_root, f"{subject_id}")
     lowrank_dir = os.path.join(subject_dir, "LowRank")
     sparse_dir = os.path.join(subject_dir, "Sparse")
    
@@ -45,7 +45,7 @@ def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.d
         
         x_gpu = x_cpu.to(device)
         
-        L_gpu, S_gpu = rpca_model.decompose(x_gpu)
+        L_gpu, S_gpu = rpca_model.decompose(x_gpu, fast=True, cols=False)
         
         L_rpca = L_gpu.detach().cpu()
         S_rpca = S_gpu.detach().cpu()
@@ -109,7 +109,7 @@ def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.d
     plt.show()
 
 def save_rpca_results(x, L, S, subject_id, results_root="./results"):
-    base_dir = os.path.join(results_root, f"Subject_{subject_id}")
+    base_dir = os.path.join(results_root, f"{subject_id}")
     dirs = {
         "Original": os.path.join(base_dir, "Original"),
         "LowRank": os.path.join(base_dir, "LowRank"),
