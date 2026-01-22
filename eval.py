@@ -5,8 +5,9 @@ import os
 import cv2
 import numpy as np
 
-def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.device("cpu"), results_root="./results"):
-    ae_model.eval()
+def evaluate_models(dataloader, rpca_model, models_dict, subject_id, device=torch.device("cpu"), results_root="./results"):
+    for model in models_dict.values():
+        model.eval()
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset))
     batch = next(iter(dataloader))
     x_cpu, _, _ = batch 
@@ -52,17 +53,24 @@ def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.d
         
         save_rpca_results(x_cpu, L_rpca, S_rpca, subject_id, results_root)
 
-    print("Running Autoencoder Inference...")
+    print("Running Deep Models Inference...")
+    model_results = {}
     with torch.no_grad():
         x_gpu = x_cpu.to(device)
-        L_ae_gpu = ae_model(x_gpu)
         
-        L_ae = L_ae_gpu.detach().cpu()
-        
-        S_ae = x_cpu - L_ae 
-    print(f"Autoencoder Inference done.\n")
+        for name, model in models_dict.items():
+            output = model(x_gpu)
+            # Handle VAEs that might return (recon, mu, logvar)
+            if isinstance(output, tuple):
+                output = output[0]
+                
+            L_gpu = output
+            L_cpu = L_gpu.detach().cpu()
+            S_cpu = x_cpu - L_cpu
+            model_results[name] = (L_cpu, S_cpu)
+    print(f"Inference done.\n")
 
-    fig, ax = plt.subplots(3, 3, figsize=(12, 10))
+    fig, ax = plt.subplots(2 + len(models_dict), 3, figsize=(12, 4 * (2 + len(models_dict))))
     plt.subplots_adjust(bottom=0.2) 
     state = {'idx': 0}
 
@@ -82,10 +90,12 @@ def evaluate_models(dataloader, rpca_model, ae_model, subject_id, device=torch.d
         show_img(ax[1,1], abs(S_rpca[idx]), "RPCA S (Anomalies)")
         ax[1,2].axis('off')
 
-        # Autoencoder
-        show_img(ax[2,0], L_ae[idx], "RDA L")
-        show_img(ax[2,1], abs(S_ae[idx]), "RDA S")
-        ax[2,2].axis('off')
+        # Deep Models
+        for i, (name, (L, S)) in enumerate(model_results.items()):
+            row = 2 + i
+            show_img(ax[row,0], L[idx], f"{name} L")
+            show_img(ax[row,1], abs(S[idx]), f"{name} S")
+            ax[row,2].axis('off')
         
         fig.canvas.draw_idle()
 

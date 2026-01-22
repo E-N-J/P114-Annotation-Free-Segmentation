@@ -1,6 +1,6 @@
 import torch
-from rpca import RobustPCA
-from rda import RobustDeepAutoencoder
+from models.rpca import RobustPCA
+from models.rda import RobustDeepAutoencoder
 from eval import evaluate_models
 from helpers.filteredDataset import FilteredDataset
 from torch.utils.data import DataLoader
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     )
     ae.plot_training_curve(log_scale=True)
     ae.eval()
-    evaluate_models(yb_loader, rpca, ae, device=DEVICE, subject_id=SUBJECT_ID, results_root="./results/yaleB")    
+    evaluate_models(yb_loader, rpca, {'RDA': ae}, device=DEVICE, subject_id=SUBJECT_ID, results_root="./results/yaleB")    
     
     # print("Do you want to save the trained Autoencoder model? (y/n): ", end="")
     # save_choice = input().strip().lower()

@@ -1,6 +1,6 @@
 import torch
-from rpca import RobustPCA
-from rda import RobustDeepAutoencoder
+from models.rpca import RobustPCA
+from models.rda import RobustDeepAutoencoder
 from eval import evaluate_models
 from helpers.filteredDataset import FilteredDataset
 from torch.utils.data import DataLoader
@@ -42,9 +42,10 @@ if __name__ == "__main__":
         'std': 0.5,
         'lr': 2e-4,
         'lambda_': 0.003,
-        'outer_epochs': 12,
+        'outer_epochs': 1,
         'inner_epochs': 70,
     }
+    models_dict = {}
     rpca = RobustPCA(max_iter=6000, lambda_=None, device=DEVICE, tol=1e-7) 
     ae = RobustDeepAutoencoder(latent_dim=ae_params['latent_dim'], dropout=ae_params['dropout'], std=ae_params['std']).to(DEVICE)
     print(f"Using parameters: {ae_params}\n")
@@ -57,10 +58,11 @@ if __name__ == "__main__":
         inner_epochs=ae_params['inner_epochs'],
         # norm_type='l21'
     )
+    models_dict['RDA'] = ae
     ae.plot_training_curve(display=False, log_scale=True)
     ae.eval()
     # evaluate_models(i2r_loader, rpca, ae, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
-    evaluate_models(test_loader, rpca, ae, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
+    evaluate_models(test_loader, rpca, models_dict, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
     
     print("Do you want to save the trained Autoencoder model? (y/n): ", end="")
     save_choice = input().strip().lower()

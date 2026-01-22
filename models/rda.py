@@ -9,14 +9,12 @@ from helpers.helper import robust_loss, shrinkage_l1, shrinkage_l21, GaussianNoi
 class RobustDeepAutoencoder(nn.Module):
     """
     Robust Deep Autoencoder for decomposing images into low-rank and sparse components.
-    Inspired by Zhou & Paffenroth, "Anomaly Detection with Robust Deep Autoencoders.
+    Inspired by Zhou & Paffenroth, Anomaly Detection with Robust Deep Autoencoders.
     """
     def __init__(self, latent_dim=3, dropout=0.1, std=0.1):
         super().__init__()
-        
-        # self.loss = nn.BCELoss()
+
         self.loss = nn.MSELoss()
-        # self.loss = nn.L1Loss()
         
         self.conv_encoder = nn.Sequential(
             # 168 -> 84
