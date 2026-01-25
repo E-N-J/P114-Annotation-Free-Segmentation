@@ -1,27 +1,36 @@
 import torch
+import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
 
-class RobustPCA:
+class RobustPCA(nn.Module):
     """
     Implements Robust PCA using the Augmented Lagrange Multiplier method
     described in Candes et al., Section 5.
     """
-    def __init__(self, lambda_=None, mu=None, tol=1.06e-6, max_iter=100, device=torch.device("cpu")):
+    def __init__(self, lambda_=None, mu=None, tol=1.06e-6, max_iter=100):
+        super().__init__()
         self.lambda_ = lambda_
         self.mu = mu
         self.tol = tol
         self.max_iter = max_iter
-        self.device = device
+        self.register_buffer('dummy_buffer', torch.empty(0))
         
     def soft_threshold(self, z, tau):
         return torch.sign(z) * torch.maximum(torch.abs(z) - tau, torch.tensor(0.0).to(z.device))
+
+    def forward(self, x):
+        """
+        Adapter method to make RPCA compatible with Neural Network evaluation loops.
+        Returns L (Low Rank / Background).
+        """
+        L, _ = self.decompose(x, fast=True, cols=False)
+        return L
 
     def decompose(self, x, fast=False, cols=False):
         """
         Input x: (Batch, Channels, Height, Width) or (Batch, Flattened)
         """
-        x = x.to(self.device)
         original_shape = x.shape
 
         flat_x = x.view(x.size(0), -1)
@@ -48,9 +57,9 @@ class RobustPCA:
             rho = 1.5 # Growth factor (standard heuristic)
             mu_bar = 1e7 # Maximum mu
 
-        L = torch.zeros_like(x_mat).to(self.device)
-        S = torch.zeros_like(x_mat).to(self.device)
-        Y = torch.zeros_like(x_mat).to(self.device)
+        L = torch.zeros_like(x_mat)
+        S = torch.zeros_like(x_mat)
+        Y = torch.zeros_like(x_mat)
         
         loop = tqdm(range(self.max_iter), desc="RPCA Optimization", leave=True)
         min_error = float('inf')
@@ -90,4 +99,3 @@ class RobustPCA:
             S = S.t()
         
         return L.view(original_shape), S.view(original_shape)
-
