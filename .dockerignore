@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+datasets/
+results/
+saved/
+*.ipynb
+.gitignore
+README.md
+training_curve.png
+rae_training_curve.png
