@@ -1,8 +1,8 @@
 import torch
 from models.rpca import RobustPCA
 from models.rda import RobustDeepAutoencoder
-from eval import evaluate_models
-from helpers.filteredDataset import FilteredDataset
+from evaluation.eval import evaluate_models
+from data.filteredDataset import FilteredDataset
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 

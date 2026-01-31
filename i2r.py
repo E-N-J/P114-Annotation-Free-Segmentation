@@ -1,8 +1,8 @@
 import torch
-from models.rpca import RobustPCA
-from models.rda import RobustDeepAutoencoder
-from eval import evaluate_models
-from helpers.filteredDataset import FilteredDataset
+from models import get_model
+from trainers import get_trainer
+from evaluation.eval import evaluate_models
+from data.filteredDataset import FilteredDataset
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     i2r_loader = DataLoader(
         i2r_data,
         batch_size=BATCH_SIZE,
-        shuffle=False
+        shuffle=True
     )
     
     test_loader = DataLoader(
@@ -42,33 +42,33 @@ if __name__ == "__main__":
         'std': 0.5,
         'lr': 2e-4,
         'lambda_': 0.003,
-        'outer_epochs': 1,
-        'inner_epochs': 70,
+        'outer_epochs': 4,
+        'inner_epochs': 5,
     }
     models_dict = {}
-    rpca = RobustPCA(max_iter=6000, lambda_=None, device=DEVICE, tol=1e-7) 
-    ae = RobustDeepAutoencoder(latent_dim=ae_params['latent_dim'], dropout=ae_params['dropout'], std=ae_params['std']).to(DEVICE)
+    rpca = get_model('RPCA', max_iter=6000, lambda_=None, tol=1e-7).to(DEVICE)
+    ae = get_model('RDA', latent_dim=ae_params['latent_dim'], dropout=ae_params['dropout'], std=ae_params['std']).to(DEVICE)
     print(f"Using parameters: {ae_params}\n")
     
-    ae.fit_admm(
-        i2r_loader,
-        lr=ae_params['lr'],
-        lambda_=ae_params['lambda_'],
-        outer_epochs=ae_params['outer_epochs'],
+    trainer = get_trainer('RDA', ae, i2r_loader)
+    
+    trainer.fit(
+        outer_epochs=ae_params['outer_epochs'], 
         inner_epochs=ae_params['inner_epochs'],
-        # norm_type='l21'
+        lr=ae_params['lr'],
+        lambda_=ae_params['lambda_']
     )
     models_dict['RDA'] = ae
-    ae.plot_training_curve(display=False, log_scale=True)
-    ae.eval()
-    # evaluate_models(i2r_loader, rpca, ae, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
-    evaluate_models(test_loader, rpca, models_dict, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
+    trainer.plot_metrics(show_figure=True, log_scale=True)
     
-    print("Do you want to save the trained Autoencoder model? (y/n): ", end="")
-    save_choice = input().strip().lower()
-    if save_choice == 'y':
-        model_name = "rda_model_i2r_3"
-        torch.save(ae.state_dict(), f"{model_name}.pth")
-        print(f"Model saved as {model_name}.pth")
-    else:
-        print("Model not saved.")
+    # evaluate_models(i2r_loader, rpca, ae, device=DEVICE, subject_id=FOOTAGE_ID, results_root="./results/i2r")
+    evaluate_models(test_loader, rpca, models_dict, subject_id=FOOTAGE_ID, results_root="./results/i2r")
+    
+    # print("Do you want to save the trained Autoencoder model? (y/n): ", end="")
+    # save_choice = input().strip().lower()
+    # if save_choice == 'y':
+    #     model_name = "rda_model_i2r_3"
+    #     torch.save(ae.state_dict(), f"{model_name}.pth")
+    #     print(f"Model saved as {model_name}.pth")
+    # else:
+    #     print("Model not saved.")
