@@ -1,7 +1,6 @@
 import torch
 from models import get_model
 from trainers import get_trainer
-from models import *
 from evaluation.eval import evaluate_models
 from data.filteredDataset import FilteredDataset
 from torch.utils.data import DataLoader
