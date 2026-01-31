@@ -9,12 +9,21 @@
 		"dockerfile": "../Dockerfile"
 	},
 	"features": {
-		// "ghcr.io/devcontainers/features/git-lfs:1": {},
-		"ghcr.io/devcontainers/features/python:1": {}
-	},
+        "ghcr.io/devcontainers/features/python:1": {
+            "installJupyterlab": true
+        }
+    },
+	"customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-toolsai.jupyter",
+                "ms-toolsai.vscode-jupyter-slideshow",
+                "ms-toolsai.jupyter-renderers",
+                "ms-python.python"
+            ]
+        }
+    },
 	"runArgs": ["--gpus=all"]
-	
-
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
