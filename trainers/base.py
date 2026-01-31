@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from IPython.display import display, clear_output
+from IPython.display import display
 from utils import get_environment
 
 class BaseTrainer:
@@ -19,8 +19,16 @@ class BaseTrainer:
         env = get_environment()
         self.is_notebook = (env == 'notebook' or env == 'colab')
         
+        if self.is_notebook:
+            from tqdm.notebook import tqdm
+            self.tqdm = tqdm
+        else:
+            from tqdm import tqdm
+            self.tqdm = tqdm
+        
         self.live_fig = None
         self.live_axes = None
+        self.display_handle = None
 
     def _create_figure(self, num_plots):
         """Helper to centralise figure creation."""
@@ -42,7 +50,6 @@ class BaseTrainer:
         if self.is_notebook:
             if self.live_fig is None:
                 self.live_fig, self.live_axes = self._create_figure(num_plots)
-                plt.close(self.live_fig) 
             
             fig, axes = self.live_fig, self.live_axes
             for ax in axes: ax.clear()
@@ -70,8 +77,10 @@ class BaseTrainer:
                 ax.set_title('Training Metrics (Log Scale)')
 
         if self.is_notebook:
-            clear_output(wait=True)
-            display(fig)
+            if self.display_handle is None:
+                self.display_handle = display(self.live_fig, display_id=True)
+            else:
+                self.display_handle.update(self.live_fig)
         else:
             plt.savefig(save_path, dpi=300)
             if show_figure:

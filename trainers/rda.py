@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from tqdm import tqdm
 from trainers.base import BaseTrainer
 from .utils import shrinkage_l1, shrinkage_l21
 
@@ -44,12 +43,12 @@ class RDATrainer(BaseTrainer):
         optimiser = optim.Adam(self.model.parameters(), lr=lr)
         self.model.train()
 
-        outer_pbar = tqdm(range(outer_epochs), desc="ADMM Steps", leave=True)
+        outer_pbar = self.tqdm(range(outer_epochs), desc="ADMM Steps", leave=True)
         
         for out_step in outer_pbar:
             
             # --- Phase 1: Train Autoencoder (Update L) ---
-            inner_pbar = tqdm(range(inner_epochs), desc=f"Step {out_step+1}: Training AE", leave=False)
+            inner_pbar = self.tqdm(range(inner_epochs), desc=f"Step {out_step+1}: Training AE", leave=False)
             for in_epoch in inner_pbar:
                 total_ae_loss = 0
                 for x, _, indices in self.loader:
