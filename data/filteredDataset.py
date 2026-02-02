@@ -63,8 +63,8 @@ class FilteredDataset(ImageFolder):
             img, label, idx = self[dataset_idx]
 
             img_np = img.permute(1, 2, 0).numpy()
-            label_idx = label.item()
-            real_idx = idx.item()
+            label_idx = label#.item()
+            real_idx = idx#.item()
             
             label_name = self.classes[label_idx] if self.classes else str(label_idx)
 
