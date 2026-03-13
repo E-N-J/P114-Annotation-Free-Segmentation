@@ -3,32 +3,16 @@ import os
 import cv2
 from .vis import visualise_results
 from .utils import save_rpca_results
-
-def evaluate_models(dataloader, rpca_model, models_dict, subject_id, results_root="./results"):
-    for model in models_dict.values():
-        model.eval()
   
-    batch = next(iter(dataloader))
-    X_input, _, _ = batch 
-    print(f"\nEvaluating on batch of size {X_input.shape[0]}...")
-    results_root = os.path.abspath(results_root)
-   
-    L_rpca, S_rpca = _get_rpca_decomposition(X_input, rpca_model, subject_id, results_root)
-    
-    model_results = _run_deep_models_inference(X_input, models_dict)
-    
-    visualise_results(X_input, L_rpca, S_rpca, model_results)
-    
-def _get_rpca_decomposition(X_input, rpca_model, subject_id, results_root):
+def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=False):
     """Handles the RPCA decomposition, either by loading from disk or by running inference."""
     
-    subject_dir = os.path.join(results_root, f"{subject_id}")
-    lowrank_dir = os.path.join(subject_dir, "LowRank")
-    sparse_dir = os.path.join(subject_dir, "Sparse")
+    lowrank_dir = os.path.join(results_root, "LowRank")
+    sparse_dir = os.path.join(results_root, "Sparse")
     device = next(rpca_model.buffers()).device
 
     batch_size = X_input.shape[0]
-    if os.path.exists(lowrank_dir) and len(os.listdir(lowrank_dir)) == batch_size:
+    if os.path.exists(lowrank_dir) and len(os.listdir(lowrank_dir)) == batch_size and not force_recompute:
         print(f"Found pre-computed RPCA results. Loading from disk...")
         
         L_list, S_list = [], []
@@ -46,11 +30,11 @@ def _get_rpca_decomposition(X_input, rpca_model, subject_id, results_root):
         X_gpu = X_input.to(device)
         L_gpu, S_gpu = rpca_model.decompose(X_gpu, fast=True, cols=False)
         L_rpca, S_rpca = L_gpu.detach().cpu(), S_gpu.detach().cpu()
-        save_rpca_results(X_input, L_rpca, S_rpca, subject_id, results_root)
+        save_rpca_results(X_input, L_rpca, S_rpca, results_root)
         
     return L_rpca, S_rpca
 
-def _run_deep_models_inference(X_input, models_dict):
+def run_deep_models_inference(X_input, models_dict):
     """Runs inference for the deep learning models."""
     print("Running Deep Models Inference...")
     model_results = {}
@@ -68,6 +52,6 @@ def _run_deep_models_inference(X_input, models_dict):
             L_gpu = output
             L_cpu = L_gpu.detach().cpu()
             S_cpu = X_input - L_cpu
-            model_results[name] = (L_cpu, S_cpu)
+            model_results[name] = [L_cpu, S_cpu]
     print(f"Inference done.\n")
     return model_results

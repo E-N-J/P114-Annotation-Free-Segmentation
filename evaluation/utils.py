@@ -2,16 +2,15 @@ import os
 import cv2
 import numpy as np
 
-def save_rpca_results(x, L, S, subject_id, results_root="./results"):
-    base_dir = os.path.join(results_root, f"{subject_id}")
+def save_rpca_results(x, L, S, results_root="./results"):
     dirs = {
-        "Original": os.path.join(base_dir, "Original"),
-        "LowRank": os.path.join(base_dir, "LowRank"),
-        "Sparse": os.path.join(base_dir, "Sparse")
+        "Original": os.path.join(results_root, "Original"),
+        "LowRank": os.path.join(results_root, "LowRank"),
+        "Sparse": os.path.join(results_root, "Sparse")
     }
     for d in dirs.values(): os.makedirs(d, exist_ok=True)
         
-    print(f"Saving RPCA results to {base_dir}...")
+    print(f"Saving RPCA results to {results_root}...")
 
     def process_and_save(tensor, folder, idx):
         img = tensor[idx].squeeze().detach().cpu().numpy()
