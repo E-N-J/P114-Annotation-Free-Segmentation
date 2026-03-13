@@ -7,28 +7,35 @@ class RobustDeepAutoencoder(nn.Module):
     Robust Deep Autoencoder for decomposing images into low-rank and sparse components.
     Inspired by Zhou & Paffenroth, Anomaly Detection with Robust Deep Autoencoders.
     """
-    def __init__(self, latent_dim=3, dropout=0.1, std=0.1):
+    def __init__(self, input_shape=(128,128), latent_dim=3, dropout=0.1, std=0.1):
         super().__init__()
+        
+        self.input_h, self.input_w = input_shape
+        if self.input_h % 4 != 0 or self.input_w % 4 != 0:
+            raise ValueError(f"Input dimensions {input_shape} must be divisible by 4.")
+
+        self.feature_h = self.input_h // 4
+        self.feature_w = self.input_w // 4
 
         self.loss = nn.MSELoss()
         
         self.conv_encoder = nn.Sequential(
-            # 168 -> 84
+            # 128 -> 64
             nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
             
-            # 84 -> 42 
+            # 64 -> 32
             nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
             
-            # Refinement Layer (Keep size 42x42)
+            # Refinement Layer (Keep size 32x32)
             nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
         )
         
-        self.flatten_dim = 64 * 42 * 42 
+        self.flatten_dim = 64 * self.feature_h * self.feature_w
         
         self.linear_encoder = nn.Sequential(
             # nn.utils.spectral_norm(nn.Linear(self.flatten_dim, 1024)),
@@ -50,15 +57,15 @@ class RobustDeepAutoencoder(nn.Module):
         )
 
         self.conv_decoder = nn.Sequential(
-            # Input: 42x42
-            # Upsample 1: 42 -> 84
+            # Input: 32x32
+            # Upsample 1: 32 -> 64
             nn.Conv2d(64, 128, kernel_size=3, padding=1), 
-            nn.PixelShuffle(2), # Output: 128/4 = 32 channels, size 84x84
+            nn.PixelShuffle(2), # Output: 128/4 = 32 channels, size 64x64
             nn.LeakyReLU(0.2, inplace=True),
             
-            # Upsample 2: 84 -> 168
+            # Upsample 2: 64 -> 128
             nn.Conv2d(32, 4, kernel_size=3, padding=1),
-            nn.PixelShuffle(2), # Output: 4/4 = 1 channel, size 168x168
+            nn.PixelShuffle(2), # Output: 4/4 = 1 channel, size 128x128
             
             nn.Sigmoid()
         )
@@ -70,7 +77,7 @@ class RobustDeepAutoencoder(nn.Module):
         x = self.linear_encoder(x)
         x = self.linear_decoder(x)
         
-        x = x.view(-1, 64, 42, 42)
+        x = x.view(-1, 64, self.feature_h, self.feature_w)
         L_pred = self.conv_decoder(x)
         
         return L_pred
