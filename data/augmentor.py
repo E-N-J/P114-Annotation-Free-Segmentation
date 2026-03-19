@@ -7,8 +7,9 @@ import torchvision.transforms as transforms
 from torchvision.utils import save_image
 from torchvision.io import read_image, ImageReadMode
 from tqdm import tqdm
-from .flatDataset import FlatDataset 
+from .flatDataset import FlatDataset
 
+# TODO: data aug and saving is slow. consider gpu for concat and parallel disk write
 class Augmentor:
     def __init__(self, source_root, rotation=0, tps=0, elastic=0, device='cuda'):
         """
@@ -20,7 +21,10 @@ class Augmentor:
             device: Device to run augmentations on.
             """
         self.source_root = source_root.rstrip(os.sep)
-        self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
+        self.device = device
+
+        self.train_folder_name = "input"
+        self.gc_folder_name = "groundtruth"
         
         self.is_identity = (rotation == 0 and tps == 0 and elastic == 0)
 
@@ -34,7 +38,6 @@ class Augmentor:
                 augs.append(random_tps)
             if elastic > 0:
                 augs.append(K_transforms.RandomElasticTransform(alpha=(elastic, elastic), p=1.0, sigma=(elastic*50, elastic*50)))
-                
             self.aug = transforms.Compose(augs)
 
             # Construct the destination folder name
@@ -46,12 +49,15 @@ class Augmentor:
             # If no augmentation, the destination is just the source
             self.dest_root = self.source_root
             
-        files = glob.glob(os.path.join(self.source_root, "*.*"))
+        files = glob.glob(os.path.join(self.source_root, self.train_folder_name, "*.*"))
         valid_files = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
         
         if valid_files:
             tmp_img = read_image(valid_files[0], mode=ImageReadMode.RGB)
             self.init_dims = (tmp_img.shape[1], tmp_img.shape[2]) # H, W
+            print(f"Initialized Augmentor with source: {self.source_root}, initial dimensions: {self.init_dims}")
+        else:
+            raise ValueError(f"No valid images found in {self.source_root}/{self.train_folder_name}. Ensure it is a flat folder.")
 
     def prepare(self, force_rebuild=False, batch_size=128):
         """
@@ -67,22 +73,35 @@ class Augmentor:
 
         print(f"Generating augmented data to: {self.dest_root}")
         os.makedirs(self.dest_root, exist_ok=True)
+        os.makedirs(os.path.join(self.dest_root, self.train_folder_name), exist_ok=True)
+        os.makedirs(os.path.join(self.dest_root, self.gc_folder_name), exist_ok=True)
         
-        files = glob.glob(os.path.join(self.source_root, "*.*"))
-        valid_files = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+        train_files = glob.glob(os.path.join(self.source_root, self.train_folder_name , "*.*"))
+        valid_train_files = [f for f in train_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+
+        gt_files = glob.glob(os.path.join(self.source_root, self.gc_folder_name , "*.*"))
+        valid_gt_files = [f for f in gt_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
         
-        if not valid_files:
-            raise ValueError(f"No images found in {self.source_root}. Ensure it is a flat folder.")
+        if not valid_train_files:
+            raise ValueError(f"No images found in {self.source_root}/{self.train_folder_name} or {self.source_root}/{self.gc_folder_name}. Ensure they are flat folders.")
+
+        if not valid_gt_files:
+            print(f"Warning: No images found in {self.source_root}/{self.gc_folder_name}. Ground truth augmentation will be skipped.")
 
         # Process the files in chunks defined by batch_size
-        for i in tqdm(range(0, len(valid_files), batch_size), desc="Augmenting in Batches"):
-            batch_files = valid_files[i : i + batch_size]
+        for i in tqdm(range(0, len(valid_train_files), batch_size), desc="Augmenting in Batches"):
+            batch_files = valid_train_files[i : i + batch_size]
             img_list = []
             
             # Read a batch of images from disk
             for filepath in batch_files:
-                img = read_image(filepath, mode=ImageReadMode.RGB).float() / 255.0
-                img_list.append(img)
+                train_img = read_image(filepath, mode=ImageReadMode.RGB).float() / 255.0
+                if valid_gt_files:    
+                    gc_img = read_image(filepath.replace(self.train_folder_name, self.gc_folder_name), mode=ImageReadMode.GRAY).float() / 255.0
+                    img = torch.cat([train_img, gc_img], dim=0) # C+1, H, W
+                    img_list.append(img)
+                else:
+                    img_list.append(train_img) # C, H, W
                 
             # Grab dims from the first image if not already set
             if not hasattr(self, 'init_dims'):
@@ -98,9 +117,18 @@ class Augmentor:
             # Unpack batch and save each image back to disk
             for j, filepath in enumerate(batch_files):
                 filename = os.path.basename(filepath)
-                dst_path = os.path.join(self.dest_root, filename)
-            
-                save_image(processed_batch[j], dst_path)
+                train_dst_path = os.path.join(self.dest_root, self.train_folder_name, filename)
+                if valid_gt_files:
+                    gc_dst_path = os.path.join(self.dest_root, self.gc_folder_name, filename)
+                    gc_batch = processed_batch[j][3].cpu() # 1, H, W #unsqueeze?
+                    train_batch = processed_batch[j][:3].cpu() # C, H, W
+                    save_image(train_batch, train_dst_path)
+                    save_image(gc_batch, gc_dst_path)
+                else:
+                    train_batch = processed_batch[j].cpu() # C, H, W
+                    save_image(train_batch, train_dst_path)
+
+        print(f"Augmentation complete. Augmented data saved to: {self.dest_root}")
 
 
     def get_dataset(self, **dataset_kwargs):
@@ -120,7 +148,27 @@ class Augmentor:
                 transforms.ToTensor(),
             ])
             
-        return FlatDataset(root=self.dest_root, **dataset_kwargs)
+        return FlatDataset(root=os.path.join(self.dest_root, self.train_folder_name), **dataset_kwargs)
+
+    def get_gc_images(self, num_images=None):
+        # Returns the ground truth images as a tensor, if they exist
+        gc_folder = os.path.join(self.dest_root, self.gc_folder_name)
+        if not os.path.exists(gc_folder):
+            print(f"No ground truth folder found at {gc_folder}. Returning None.")
+            # return an empty tensor with the correct size to avoid errors in evaluation
+            return torch.empty(0)
+        gc_files = glob.glob(os.path.join(gc_folder, "*.*"))
+        valid_gc_files = [f for f in gc_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+        if not valid_gc_files:
+            print(f"No valid ground truth images found in {gc_folder}. Returning None.")
+            return torch.empty(0)
+        gc_imgs = []
+        for filepath in valid_gc_files:
+            gc_img = read_image(filepath, mode=ImageReadMode.GRAY).float() / 255.0
+            gc_imgs.append(gc_img)
+        if num_images is not None:
+            gc_imgs = gc_imgs[:num_images]
+        return torch.stack(gc_imgs)
 
 def create_tps_transform(strength=0.5, grid_size=5, device='cuda'):
     """
