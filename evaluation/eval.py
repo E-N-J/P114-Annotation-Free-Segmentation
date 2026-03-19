@@ -1,7 +1,7 @@
 import torch
+import torch.nn.functional as F
 import os
 from .utils import save_rpca_results
-import torch.nn.functional as F
 
 def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=False, target_size=None):
     """Handles the RPCA decomposition, resizing on the GPU where possible."""
@@ -76,3 +76,25 @@ def run_deep_models_inference(X_input, models_dict, target_size=None):
             
     print("Inference done.\n")
     return model_results
+
+def calculate_dice(truth, S, threshold=0.05):
+    """
+    Calculates the Dice Similarity Coefficient between ground truth and predicted sparse anomalies.
+    Assumes both inputs are already on the CPU.
+    """
+    y_true = torch.as_tensor(truth).flatten()
+    y_scores = torch.as_tensor(S).flatten()
+    
+    # Binarise the ground truth
+    y_true = (y_true > 0.5).float()
+    
+    # Binarise the model predictions
+    y_pred = (y_scores.abs() > threshold).float()
+
+    intersection = torch.sum(y_true * y_pred)
+    denominator = torch.sum(y_true) + torch.sum(y_pred)
+    
+    epsilon = 1e-8
+    dice = (2.0 * intersection + epsilon) / (denominator + epsilon)
+    
+    return dice.item()

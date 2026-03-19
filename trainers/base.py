@@ -12,7 +12,7 @@ class BaseTrainer:
             # Fallback for models with no parameters (e.g., RPCA)
             self.device = next(model.buffers()).device
             
-        print(f"Training with {self.device}")
+        print(f"Trainer loaded to {self.device}")
         self.global_step = 0
         self.histories = {}
         
