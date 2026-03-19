@@ -1,6 +1,7 @@
 import os
 import glob
 import torch
+import torch.nn as nn
 import kornia.augmentation as K_transforms
 import kornia.geometry.transform as K_geometry
 import torchvision.transforms as transforms
@@ -10,19 +11,20 @@ from tqdm import tqdm
 from .flatDataset import FlatDataset 
 
 class Augmentor:
-    def __init__(self, source_root, rotation=0, tps=0, elastic=0, device='cuda'):
+    def __init__(self, source_root, rotation=0, tps=0, elastic=0, dense_noise=0, device='cuda'):
         """
         Args:
             source_root: Path to the flat folder of raw images.
             rotation: Degrees of random rotation.
             tps: Scale of Thin Plate Spline distortion.
             elastic: Scale of Elastic Transform distortion.
+            dense_noise: Scale of dense noise.
             device: Device to run augmentations on.
             """
         self.source_root = source_root.rstrip(os.sep)
         self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
         
-        self.is_identity = (rotation == 0 and tps == 0 and elastic == 0)
+        self.is_identity = (rotation == 0 and tps == 0 and elastic == 0 and dense_noise == 0)
 
         if not self.is_identity:
             # Define the GPU Augmentation Pipeline
@@ -34,12 +36,14 @@ class Augmentor:
                 augs.append(random_tps)
             if elastic > 0:
                 augs.append(K_transforms.RandomElasticTransform(alpha=(elastic, elastic), p=1.0, sigma=(elastic*50, elastic*50)))
+            if dense_noise > 0:
+                augs.append(RandomRicianNoise(std=dense_noise))
                 
             self.aug = transforms.Compose(augs)
 
             # Construct the destination folder name
             folder_name = os.path.basename(self.source_root)
-            suffix = f"_Rot{rotation}_TPS{tps}_El{elastic}"
+            suffix = f"_Rot{rotation}_TPS{tps}_El{elastic}_DN{dense_noise}"
             parent_dir = os.path.dirname(self.source_root)
             self.dest_root = os.path.join(parent_dir, folder_name + suffix)
         else:
@@ -169,3 +173,20 @@ def create_tps_transform(strength=0.5, grid_size=5, device='cuda'):
         return K_geometry.warp_image_tps(image, src_points, kernel, affine)
 
     return tps_transform
+class RandomRicianNoise(nn.Module):
+    """
+    Applies Rician noise to a PyTorch tensor.
+    """
+    def __init__(self, std: float):
+        super().__init__()
+        self.std = std
+
+    def forward(self, img: torch.Tensor) -> torch.Tensor:
+        # Generate independent Gaussian noise for real and imaginary components
+        noise_real = torch.randn_like(img) * self.std
+        noise_imag = torch.randn_like(img) * self.std
+        
+        # Calculate the Rician noise magnitude
+        noisy_img = torch.sqrt((img + noise_real)**2 + noise_imag**2)
+        
+        return noisy_img
