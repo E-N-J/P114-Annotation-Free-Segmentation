@@ -18,8 +18,6 @@ SUBJECT_ID = 7
 print(f"Using device: {DEVICE}\n")
 
 # TODO 
-# fix forced square img dims
-# neaten eval function, split it up
 # remove noise and spectral norm from RDA
 
 

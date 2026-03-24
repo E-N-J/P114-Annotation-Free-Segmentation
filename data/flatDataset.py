@@ -56,7 +56,7 @@ class FlatDataset(Dataset):
         # '0' as the label because we only have one class
         return img, 0, index
 
-    def visualize(self, start_idx=0, num_images=16, columns=4, cmap='gray'):
+    def visualise(self, start_idx=0, num_images=16, columns=4, cmap='gray'):
         """
         Visualizes a grid of images from the current dataset.
         Copied and adapted from FilteredDataset.

@@ -9,7 +9,8 @@ from torchvision.io import read_image, ImageReadMode
 from tqdm import tqdm
 from .flatDataset import FlatDataset
 
-# TODO: data aug and saving is slow. consider gpu for concat and parallel disk write
+# TODO: data aug and saving is slow. consider gpu for concat and parallel disk 
+# what to do when there is no ground truth? currently just augment the train image and skip gc
 class Augmentor:
     def __init__(self, source_root, rotation=0, tps=0, elastic=0, device='cuda'):
         """
@@ -155,13 +156,12 @@ class Augmentor:
         gc_folder = os.path.join(self.dest_root, self.gc_folder_name)
         if not os.path.exists(gc_folder):
             print(f"No ground truth folder found at {gc_folder}. Returning None.")
-            # return an empty tensor with the correct size to avoid errors in evaluation
-            return torch.empty(0)
+            return None
         gc_files = glob.glob(os.path.join(gc_folder, "*.*"))
         valid_gc_files = [f for f in gc_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
         if not valid_gc_files:
             print(f"No valid ground truth images found in {gc_folder}. Returning None.")
-            return torch.empty(0)
+            return None
         gc_imgs = []
         for filepath in valid_gc_files:
             gc_img = read_image(filepath, mode=ImageReadMode.GRAY).float() / 255.0
