@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import numpy as np
 from tqdm import tqdm
 
 class RobustPCA(nn.Module):
@@ -34,7 +33,7 @@ class RobustPCA(nn.Module):
         original_shape = x.shape
 
         flat_x = x.view(x.size(0), -1)
-       
+        
         if cols:
             x_mat = flat_x.t() 
         else:
@@ -42,11 +41,11 @@ class RobustPCA(nn.Module):
             
         x_mat_norm = torch.norm(x_mat, 'fro')
         
-        n1, n2 = x_mat.shape
+        n1, n2 = torch.tensor(x_mat.shape)
         
         # Parameter defaults suggested in the paper
         if self.lambda_ is None:
-            self.lambda_ = 1.0 / np.sqrt(max(n1, n2))
+            self.lambda_ = 1.0 / torch.sqrt(max(n1, n2))
         
         # Suggested mu in paper
         if self.mu is None:
