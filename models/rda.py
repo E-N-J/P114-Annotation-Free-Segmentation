@@ -59,7 +59,7 @@ class RobustDeepAutoencoder(nn.Module):
         self.conv_decoder = nn.Sequential(
             # Input: 32x32
             # Upsample 1: 32 -> 64
-            nn.Conv2d(64, 128, kernel_size=3, padding=1), 
+            nn.Conv2d(64, 128, kernel_size=3, padding=1), # TODO: conv2d or convtranspose2d?
             nn.PixelShuffle(2), # Output: 128/4 = 32 channels, size 64x64
             nn.LeakyReLU(0.2, inplace=True),
             

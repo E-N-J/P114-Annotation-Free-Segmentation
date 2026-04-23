@@ -159,3 +159,4 @@ class RDATrainer(BaseTrainer):
             
         print(f"Final Reconstruction Loss: {avg_ae_loss:.4e}")      
         print("ADMM Training Complete.")
+        self.log_final_metrics()
