@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from IPython.display import display
+from datetime import datetime
 from utils import get_environment
 
 class BaseTrainer:
@@ -87,4 +88,17 @@ class BaseTrainer:
                 plt.show()
             else:
                 plt.close(fig)
+
+    def log_final_metrics(self):
+        # save all metrics and model details to a text file for later analysis
+        with open('log.txt', 'a') as f:
+            f.write("Metrics:\n")
+            for metric_name, metric_value in self.histories.items():
+                f.write(f"{metric_name}: {metric_value[-1]:.4f}\n")
+            f.write("\nModel Details:\n")
+            f.write(str(self.model))
+            f.write("\nmodel name: " + self.model.__class__.__name__ + "\n")
+            f.write("device: " + str(self.device) + "\n")
+            f.write("current time: " + str(datetime.now()) + "\n")
+            f.write("-" * 50 + "\n")
                 
