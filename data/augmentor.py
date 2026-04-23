@@ -55,7 +55,7 @@ class Augmentor:
             # If no augmentation, the destination is just the source
             self.dest_root = self.source_root
             
-        files = glob.glob(os.path.join(self.source_root, self.train_folder_name, "*.*"))
+        files = sorted(glob.glob(os.path.join(self.source_root, self.train_folder_name, "*.*")))
         valid_files = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
         
         if valid_files:
@@ -82,10 +82,10 @@ class Augmentor:
         os.makedirs(os.path.join(self.dest_root, self.train_folder_name), exist_ok=True)
         os.makedirs(os.path.join(self.dest_root, self.gc_folder_name), exist_ok=True)
         
-        train_files = glob.glob(os.path.join(self.source_root, self.train_folder_name , "*.*"))
+        train_files = sorted(glob.glob(os.path.join(self.source_root, self.train_folder_name , "*.*")))
         valid_train_files = [f for f in train_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
 
-        gt_files = glob.glob(os.path.join(self.source_root, self.gc_folder_name , "*.*"))
+        gt_files = sorted(glob.glob(os.path.join(self.source_root, self.gc_folder_name , "*.*")))
         valid_gt_files = [f for f in gt_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
         
         if not valid_train_files:
@@ -156,24 +156,24 @@ class Augmentor:
             
         return FlatDataset(root=os.path.join(self.dest_root, self.train_folder_name), **dataset_kwargs)
 
-    def get_gc_images(self, num_images=None):
+    def get_gt_images(self, num_images=None):
         # Returns the ground truth images as a tensor, if they exist
-        gc_folder = os.path.join(self.dest_root, self.gc_folder_name)
-        if not os.path.exists(gc_folder):
-            print(f"No ground truth folder found at {gc_folder}. Returning None.")
+        gt_folder = os.path.join(self.dest_root, self.gc_folder_name)
+        if not os.path.exists(gt_folder):
+            print(f"No ground truth folder found at {gt_folder}. Returning None.")
             return None
-        gc_files = glob.glob(os.path.join(gc_folder, "*.*"))
-        valid_gc_files = [f for f in gc_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
-        if not valid_gc_files:
-            print(f"No valid ground truth images found in {gc_folder}. Returning None.")
+        gt_files = sorted(glob.glob(os.path.join(gt_folder, "*.*")))
+        valid_gt_files = [f for f in gt_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+        if not valid_gt_files:
+            print(f"No valid ground truth images found in {gt_folder}. Returning None.")
             return None
-        gc_imgs = []
-        for filepath in valid_gc_files:
-            gc_img = read_image(filepath, mode=ImageReadMode.GRAY).float() / 255.0
-            gc_imgs.append(gc_img)
+        gt_imgs = []
+        for filepath in valid_gt_files:
+            gt_img = read_image(filepath, mode=ImageReadMode.GRAY).float() / 255.0
+            gt_imgs.append(gt_img)
         if num_images is not None:
-            gc_imgs = gc_imgs[:num_images]
-        return torch.stack(gc_imgs)
+            gt_imgs = gt_imgs[:num_images]
+        return torch.stack(gt_imgs)
 
 def create_tps_transform(strength=0.5, grid_size=5, device='cuda'):
     """
