@@ -74,7 +74,7 @@ class BaseTrainer:
             ax.legend()
             
             if log_scale and plot_idx == 1:
-                ax.set_yscale('log')
+                ax.set_yscale('symlog')
                 ax.set_title('Training Metrics (Log Scale)')
 
         if self.is_notebook:
