@@ -7,7 +7,7 @@ class RobustDeepAutoencoder(nn.Module):
     Robust Deep Autoencoder for decomposing images into low-rank and sparse components.
     Inspired by Zhou & Paffenroth, Anomaly Detection with Robust Deep Autoencoders.
     """
-    def __init__(self, input_shape=(128,128), latent_dim=3, dropout=0.1, std=0.1):
+    def __init__(self, input_shape=(128,128), latent_dim=3, dropout=0.0, std=0.0):
         super().__init__()
         
         self.input_h, self.input_w = input_shape
@@ -37,7 +37,7 @@ class RobustDeepAutoencoder(nn.Module):
         
         self.flatten_dim = 64 * self.feature_h * self.feature_w
         
-        self.linear_encoder = nn.Sequential(
+        self.linear_encoder = nn.Sequential(#TODO: combine with conv encoder
             # nn.utils.spectral_norm(nn.Linear(self.flatten_dim, 1024)),
             nn.Linear(self.flatten_dim, 1024),
             nn.BatchNorm1d(1024),

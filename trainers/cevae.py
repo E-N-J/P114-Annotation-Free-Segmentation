@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
 from trainers.base import BaseTrainer
 from pytorch_msssim import ssim
