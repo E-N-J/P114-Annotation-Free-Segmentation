@@ -54,7 +54,7 @@ def inference_generator(model):
         with torch.no_grad():
             output = model(batch_x)
             L_dev = output[0] if isinstance(output, tuple) else output
-            S_dev = batch_x - L_dev
+            S_dev = torch.abs(batch_x - L_dev)
         return L_dev.detach(), S_dev.detach()
     
     yield process_batch
@@ -70,15 +70,14 @@ def run_deep_models_inference(X_input, models_dict, target_size=None, batch_size
             device = next(model.parameters()).device
         except StopIteration:
             device = next(model.buffers()).device
+            
+        torch.cuda.empty_cache()
         
         L_batches = []
         S_batches = []
-        if name == 'ceVAE':
-            print(f"Running {name} inference with guided backprop and noise tunnel...")
-            selected_inference = model.anomaly_generator(
-                nt_samples_batch_size=10,
-                nt_samples=50,
-            )
+        if hasattr(model, 'anomaly_generator'): 
+            print(f"Running {name} inference with custom anomaly generator...")
+            selected_inference = model.anomaly_generator()
         else:
             print(f"Running {name} inference with standard approach in batches...")
             selected_inference = inference_generator(model)
