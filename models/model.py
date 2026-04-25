@@ -8,5 +8,8 @@ def get_model(model_name, **kwargs):
     elif model_name == 'ceVAE':
         from .cevae import ContextEncodingVAE
         return ContextEncodingVAE(**kwargs)
+    elif model_name == 'RVAE':
+        from .rvae import RobustVAE
+        return RobustVAE(**kwargs)
     else:
         raise ValueError(f"Model '{model_name}' not recognised.")
