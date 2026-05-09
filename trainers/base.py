@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from IPython.display import display
 from datetime import datetime
 from utils import get_environment
+import inspect
 
 class BaseTrainer:
     def __init__(self, model, loader):
@@ -74,7 +75,7 @@ class BaseTrainer:
             ax.legend()
             
             if log_scale and plot_idx == 1:
-                ax.set_yscale('symlog')
+                ax.set_yscale('log')
                 ax.set_title('Training Metrics (Log Scale)')
 
         if self.is_notebook:
@@ -100,5 +101,18 @@ class BaseTrainer:
             f.write("\nmodel name: " + self.model.__class__.__name__ + "\n")
             f.write("device: " + str(self.device) + "\n")
             f.write("current time: " + str(datetime.now()) + "\n")
+            
+            # log arguments of funtion it was ran in
+            f.write("Arguments:\n")
+            
+            frame = inspect.currentframe()
+            outer_frames = inspect.getouterframes(frame)
+            for outer in outer_frames:
+                if 'fit' in outer.function:
+                    args, _, _, values = inspect.getargvalues(outer.frame)
+                    for arg in args:
+                        f.write(f"{arg}: {values[arg]}\n")
+                    break
+
             f.write("-" * 50 + "\n")
                 
