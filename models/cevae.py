@@ -13,8 +13,14 @@ class ContextEncodingVAE(nn.Module):
     """
     Strictly Fully Convolutional Context-encoding VAE matching Zimmerer et al. (2019).
     """
-    def __init__(self, latent_channels=1024, with_r=False):
+    def __init__(self, latent_channels=1024, with_r=False, input_shape=(128, 128)):
         super().__init__()
+        
+        self.input_h, self.input_w = input_shape
+        if self.input_h % 32 != 0 or self.input_w % 32 != 0:
+            raise ValueError(
+                f"Input dimensions {input_shape} must be divisible by 32 to match the five-step ceVAE downsampling path."
+            )
         
         self.encoder = nn.Sequential(
             CoordConv(1, 16, kernel_size=4, stride=2, padding=1, with_r=with_r),
