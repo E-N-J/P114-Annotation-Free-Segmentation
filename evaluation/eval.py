@@ -110,7 +110,7 @@ def calculate_dice(truth, S, threshold=0.05):
     y_scores = torch.as_tensor(S).flatten()
     
     # Binarise the ground truth
-    y_true = (y_true > 0.5).float()
+    y_true = torch.as_tensor(truth).flatten().bool()
     
     # Binarise the model predictions
     y_pred = (y_scores.abs() > threshold).float()
