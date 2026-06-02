@@ -41,8 +41,8 @@ class Augmentor:
                 augs.append(random_tps)
             if elastic > 0:
                 augs.append(K_transforms.RandomElasticTransform(alpha=(elastic, elastic), p=1.0, sigma=(elastic*50, elastic*50)))
-            if dense_noise > 0:
-                augs.append(RandomRicianNoise(std=dense_noise))
+
+            self.noise = RandomRicianNoise(std=dense_noise) if dense_noise > 0 else None
                 
             self.aug = transforms.Compose(augs)
 
@@ -118,7 +118,13 @@ class Augmentor:
             
             # Apply the augmentations simultaneously to batch
             with torch.no_grad():
-                processed_batch = self.aug(batch_tensor)
+                if getattr(self, 'aug', None) is not None:
+                    processed_batch = self.aug(batch_tensor)
+                else:
+                    processed_batch = batch_tensor.clone()
+                    
+                if getattr(self, 'noise', None) is not None:
+                    processed_batch[:, :3, :, :] = self.noise(processed_batch[:, :3, :, :])
             
             # Unpack batch and save each image back to disk
             for j, filepath in enumerate(batch_files):
