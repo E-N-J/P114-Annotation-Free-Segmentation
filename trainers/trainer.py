@@ -5,6 +5,9 @@ def get_trainer(trainer_name, model, loader, **kwargs):
     if trainer_name == 'ceVAE':
         from .cevae import CeVAETrainer
         return CeVAETrainer(model=model, loader=loader, **kwargs)
+    if trainer_name == 'STCeVAE':
+        from .stcevae import SpatialCeVAETrainer
+        return SpatialCeVAETrainer(model=model, loader=loader, **kwargs)
     if trainer_name == 'RVAE':
         from .rvae import RVAETrainer
         return RVAETrainer(model=model, loader=loader, **kwargs)
