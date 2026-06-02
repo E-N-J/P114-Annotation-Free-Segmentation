@@ -161,7 +161,7 @@ class MicroLDM_UNet(nn.Module):
     """
     A hyper-optimised, lightweight version of the LDM U-Net.
     """
-    def __init__(self, img_channels=1, base_channels=32, channel_mults=(1, 2, 4), time_emb_dim=128):
+    def __init__(self, img_channels=1, base_channels=32, channel_mults=(1, 2, 4, 4), time_emb_dim=128):
         super().__init__()
         
         self.time_mlp = nn.Sequential(
@@ -173,44 +173,42 @@ class MicroLDM_UNet(nn.Module):
 
         self.init_conv = nn.Conv2d(img_channels, base_channels, kernel_size=3, padding=1)
 
+        # Strictly decouple ResBlocks from down/up convolutions
         self.downs = nn.ModuleList()
-        channels = [base_channels]
+        self.down_convs = nn.ModuleList()
+        channels = []
+        
         now_channels = base_channels
         
         # Downsampling: 128 -> 64 -> 32 -> 16
         for i, mult in enumerate(channel_mults):
             out_channels = base_channels * mult
-            # Only 1 ResBlock per level instead of 2 to double the speed
-            block = nn.ModuleList([ResBlock(now_channels, out_channels, time_emb_dim)])
+            self.downs.append(ResBlock(now_channels, out_channels, time_emb_dim))
             now_channels = out_channels
-            
-            self.downs.append(block)
             channels.append(now_channels)
-                
+            
             if i != len(channel_mults) - 1:
-                down_conv = nn.ModuleList([nn.Conv2d(now_channels, now_channels, kernel_size=3, stride=2, padding=1)])
-                self.downs.append(down_conv)
-                channels.append(now_channels)
+                self.down_convs.append(nn.Conv2d(now_channels, now_channels, kernel_size=3, stride=2, padding=1))
 
         # Bottleneck (16x16 resolution)
-        # We apply the expensive LDM attention ONLY here where it is cheapest to compute.
         self.mid_block1 = ResBlock(now_channels, now_channels, time_emb_dim)
         self.mid_attn = AttentionBlock(now_channels)
         self.mid_block2 = ResBlock(now_channels, now_channels, time_emb_dim)
 
         # Upsampling: 16 -> 32 -> 64 -> 128
         self.ups = nn.ModuleList()
+        self.up_convs = nn.ModuleList()
+        
         for i, mult in reversed(list(enumerate(channel_mults))):
             out_channels = base_channels * mult
-            block = nn.ModuleList([ResBlock(now_channels + channels.pop(), out_channels, time_emb_dim)])
+            skip_channels = channels.pop()
+            self.ups.append(ResBlock(now_channels + skip_channels, out_channels, time_emb_dim))
             now_channels = out_channels
-            self.ups.append(block)
                 
             if i != 0:
-                up_conv = nn.ModuleList([nn.ConvTranspose2d(now_channels, now_channels, kernel_size=4, stride=2, padding=1)])
-                self.ups.append(up_conv)
+                self.up_convs.append(nn.ConvTranspose2d(now_channels, now_channels, kernel_size=4, stride=2, padding=1))
 
-        self.final_norm = nn.GroupNorm(8, now_channels) # Adjusted group size for smaller channel count
+        self.final_norm = nn.GroupNorm(8, now_channels)
         self.final_act = nn.SiLU()
         self.final_conv = nn.Conv2d(now_channels, img_channels, kernel_size=3, padding=1)
 
@@ -218,26 +216,31 @@ class MicroLDM_UNet(nn.Module):
         t_emb = self.time_mlp(t)
         x = self.init_conv(x)
         
-        skips = [x]
+        skips = []
         
-        for block in self.downs:
-            for layer in block:
-                x = layer(x, t_emb) if isinstance(layer, ResBlock) else layer(x)
-            skips.append(x)
+        # Encoder
+        for i in range(len(self.downs)):
+            x = self.downs[i](x, t_emb)
+            skips.append(x) # Save perfectly aligned skip connection
+            if i < len(self.down_convs):
+                x = self.down_convs[i](x)
             
+        # Bottleneck
         x = self.mid_block1(x, t_emb)
         x = self.mid_attn(x)
         x = self.mid_block2(x, t_emb)
 
-        for block in self.ups:
-            if isinstance(block[0], ResBlock):
-                skip = skips.pop()
-                x = torch.cat([x, skip], dim=1)
-            for layer in block:
-                x = layer(x, t_emb) if isinstance(layer, ResBlock) else layer(x)
+        # Decoder
+        for i in range(len(self.ups)):
+            skip = skips.pop()
+            x = torch.cat([x, skip], dim=1) # Dimensions mathematically guaranteed to match
+            x = self.ups[i](x, t_emb)
+            if i < len(self.up_convs):
+                x = self.up_convs[i](x)
 
         x = self.final_act(self.final_norm(x))
         return self.final_conv(x)
+
 class RDDPM(nn.Module):
     """
     Robust Denoising Diffusion Probabilistic Model.
