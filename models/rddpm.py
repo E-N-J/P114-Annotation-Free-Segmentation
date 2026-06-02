@@ -156,6 +156,88 @@ class LDM_UNet(nn.Module):
         x = self.final_act(self.final_norm(x))
         return self.final_conv(x)
 
+
+class MicroLDM_UNet(nn.Module):
+    """
+    A hyper-optimised, lightweight version of the LDM U-Net.
+    """
+    def __init__(self, img_channels=1, base_channels=32, channel_mults=(1, 2, 4), time_emb_dim=128):
+        super().__init__()
+        
+        self.time_mlp = nn.Sequential(
+            SinusoidalPositionEmbeddings(base_channels),
+            nn.Linear(base_channels, time_emb_dim),
+            nn.SiLU(),
+            nn.Linear(time_emb_dim, time_emb_dim)
+        )
+
+        self.init_conv = nn.Conv2d(img_channels, base_channels, kernel_size=3, padding=1)
+
+        self.downs = nn.ModuleList()
+        channels = [base_channels]
+        now_channels = base_channels
+        
+        # Downsampling: 128 -> 64 -> 32 -> 16
+        for i, mult in enumerate(channel_mults):
+            out_channels = base_channels * mult
+            # Only 1 ResBlock per level instead of 2 to double the speed
+            block = nn.ModuleList([ResBlock(now_channels, out_channels, time_emb_dim)])
+            now_channels = out_channels
+            
+            self.downs.append(block)
+            channels.append(now_channels)
+                
+            if i != len(channel_mults) - 1:
+                down_conv = nn.ModuleList([nn.Conv2d(now_channels, now_channels, kernel_size=3, stride=2, padding=1)])
+                self.downs.append(down_conv)
+                channels.append(now_channels)
+
+        # Bottleneck (16x16 resolution)
+        # We apply the expensive LDM attention ONLY here where it is cheapest to compute.
+        self.mid_block1 = ResBlock(now_channels, now_channels, time_emb_dim)
+        self.mid_attn = AttentionBlock(now_channels)
+        self.mid_block2 = ResBlock(now_channels, now_channels, time_emb_dim)
+
+        # Upsampling: 16 -> 32 -> 64 -> 128
+        self.ups = nn.ModuleList()
+        for i, mult in reversed(list(enumerate(channel_mults))):
+            out_channels = base_channels * mult
+            block = nn.ModuleList([ResBlock(now_channels + channels.pop(), out_channels, time_emb_dim)])
+            now_channels = out_channels
+            self.ups.append(block)
+                
+            if i != 0:
+                up_conv = nn.ModuleList([nn.ConvTranspose2d(now_channels, now_channels, kernel_size=4, stride=2, padding=1)])
+                self.ups.append(up_conv)
+
+        self.final_norm = nn.GroupNorm(8, now_channels) # Adjusted group size for smaller channel count
+        self.final_act = nn.SiLU()
+        self.final_conv = nn.Conv2d(now_channels, img_channels, kernel_size=3, padding=1)
+
+    def forward(self, x, t):
+        t_emb = self.time_mlp(t)
+        x = self.init_conv(x)
+        
+        skips = [x]
+        
+        for block in self.downs:
+            for layer in block:
+                x = layer(x, t_emb) if isinstance(layer, ResBlock) else layer(x)
+            skips.append(x)
+            
+        x = self.mid_block1(x, t_emb)
+        x = self.mid_attn(x)
+        x = self.mid_block2(x, t_emb)
+
+        for block in self.ups:
+            if isinstance(block[0], ResBlock):
+                skip = skips.pop()
+                x = torch.cat([x, skip], dim=1)
+            for layer in block:
+                x = layer(x, t_emb) if isinstance(layer, ResBlock) else layer(x)
+
+        x = self.final_act(self.final_norm(x))
+        return self.final_conv(x)
 class RDDPM(nn.Module):
     """
     Robust Denoising Diffusion Probabilistic Model.
@@ -166,7 +248,7 @@ class RDDPM(nn.Module):
         self.timesteps = timesteps
         self.corrupt_ratio = corrupt_ratio
         
-        self.unet = LDM_UNet(img_channels=img_channels)
+        self.unet = MicroLDM_UNet(img_channels=img_channels)
         
         # Noise Schedule
         beta_start = 0.001
