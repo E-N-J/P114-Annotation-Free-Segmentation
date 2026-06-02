@@ -13,7 +13,7 @@ class ContextEncodingVAE(nn.Module):
     """
     Strictly Fully Convolutional Context-encoding VAE matching Zimmerer et al. (2019).
     """
-    def __init__(self, latent_channels=1024, with_r=False, input_shape=(128, 128)):
+    def __init__(self, latent_channels=1024, with_r=True, input_shape=(128, 128)):
         super().__init__()
         
         self.input_h, self.input_w = input_shape
