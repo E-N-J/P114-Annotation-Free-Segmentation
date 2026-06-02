@@ -5,9 +5,10 @@ from utils import get_environment
 import inspect
 
 class BaseTrainer:
-    def __init__(self, model, loader):
+    def __init__(self, model, loader, val_loader=None):
         self.model = model
         self.loader = loader
+        self.val_loader = val_loader
         try:
             self.device = next(model.parameters()).device
         except StopIteration:
