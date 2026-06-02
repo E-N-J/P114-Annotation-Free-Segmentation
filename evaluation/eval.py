@@ -4,7 +4,7 @@ import os
 from .utils import save_rpca_results
 from contextlib import contextmanager
 
-def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=False, target_size=None):
+def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=False, target_size=None, exact=False):
     """Handles the RPCA decomposition, resizing on the GPU where possible."""
     
     try:
@@ -34,7 +34,10 @@ def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=Fa
     else:
         print("Running RPCA Inference...")
         X_gpu = X_input.to(device)
-        L_gpu, S_gpu = rpca_model.decompose(X_gpu, fast=True, cols=False)
+        if exact:
+            L_gpu, S_gpu = rpca_model.decompose_ealm(X_gpu)
+        else:
+            L_gpu, S_gpu = rpca_model.decompose_ialm(X_gpu)
 
         if target_size is not None:
             L_rpca = F.interpolate(L_gpu, size=target_size).cpu()
