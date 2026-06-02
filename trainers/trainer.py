@@ -8,5 +8,8 @@ def get_trainer(trainer_name, model, loader, **kwargs):
     if trainer_name == 'RVAE':
         from .rvae import RVAETrainer
         return RVAETrainer(model=model, loader=loader, **kwargs)
+    if trainer_name == 'RDDPM':
+        from .rddpm import RDDPMTrainer
+        return RDDPMTrainer(model=model, loader=loader, **kwargs)
     else:
         raise ValueError(f"Trainer '{trainer_name}' not recognized.")

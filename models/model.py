@@ -11,5 +11,8 @@ def get_model(model_name, **kwargs):
     elif model_name == 'RVAE':
         from .rvae import RobustVAE
         return RobustVAE(**kwargs)
+    elif model_name == 'RDDPM':
+        from .rddpm import RDDPM
+        return RDDPM(**kwargs)
     else:
         raise ValueError(f"Model '{model_name}' not recognised.")
