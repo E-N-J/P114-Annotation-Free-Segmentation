@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torchmetrics.classification import BinaryAUROC, BinaryAveragePrecision
 import os
 from .utils import save_rpca_results
 from contextlib import contextmanager
@@ -163,3 +164,22 @@ def find_optimal_dice(truth, S, bins=1000):
     best_threshold = thresholds[best_idx].item()
     
     return best_threshold, best_dice
+
+def calculate_auroc(truth, S):
+    y_true = torch.as_tensor(truth).flatten() # torchmetrics prefers ints for labels
+    y_scores = torch.as_tensor(S).flatten().abs()
+
+    metric = BinaryAUROC()
+    metric.update(y_scores, y_true)  
+    
+    # Calculate and return as a standard Python float
+    return metric.compute().item()
+
+def calculate_auprc(truth, S):
+    y_true = torch.as_tensor(truth).flatten() 
+    y_scores = torch.as_tensor(S).flatten().abs()
+
+    metric = BinaryAveragePrecision()
+    metric.update(y_scores, y_true)  
+    
+    return metric.compute().item()
