@@ -17,26 +17,10 @@ def robust_lts_loss(pred, target, lambda_=0.8):
     
     return trimmed_loss.mean()
 
-class NoiseScheduler:
-    def __init__(self, timesteps=1000, beta_start=0.001, beta_end=0.02, device="cpu"):
-        self.timesteps = timesteps
-        self.device = device
-    
-        self.betas = torch.linspace(beta_start, beta_end, timesteps, device=device)
-        self.alphas = 1. - self.betas
-        self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
-        
-    def add_noise(self, x_0, t, noise):
-        """Forward diffusion process: closed form"""
-        sqrt_alphas_cumprod = torch.sqrt(self.alphas_cumprod[t])[:, None, None, None]
-        sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - self.alphas_cumprod[t])[:, None, None, None]
-        return sqrt_alphas_cumprod * x_0 + sqrt_one_minus_alphas_cumprod * noise
-    
 class RDDPMTrainer(BaseTrainer):
-    def __init__(self, model, loader, timesteps=1000):
+    def __init__(self, model, loader):
         super().__init__(model, loader)
-            
-        self.scheduler = NoiseScheduler(timesteps=timesteps, device=self.device)
+        # The external NoiseScheduler is removed. The model now carries its own schedule.
         
     def fit(self, lr=1e-4, epochs=20, loss_type='huber', robust_param=None):
         self.loss_type = loss_type
@@ -56,26 +40,30 @@ class RDDPMTrainer(BaseTrainer):
             
             inner_pbar = self.tqdm(self.loader, desc=f"Epoch {epoch+1}", leave=False)
             for batch in inner_pbar:
-                # Handle varying dataloader outputs (adjust index based on your framework)
+                # Handle varying dataloader outputs
                 x = batch[0] if isinstance(batch, (list, tuple)) else batch
                 x = x.to(self.device)
+                
+                # Scale [0, 1] inputs to [-1, 1] for symmetric noise addition
                 x = self.model._scale_to_minus_one_to_one(x)
                 B = x.shape[0]
                 
-                # Sample uniform random timesteps
-                t = torch.randint(0, self.scheduler.timesteps, (B,), device=self.device).long()
+                # Sample uniform random timesteps natively from the model's attribute
+                t = torch.randint(0, self.model.timesteps, (B,), device=self.device).long()
                 
                 # Sample standard Gaussian noise
                 noise = torch.randn_like(x)
                 
-                # Add noise to the clean images
-                x_noisy = self.scheduler.add_noise(x, t, noise)
+                # Forward diffusion process using the model's registered buffers
+                sqrt_alphas_cumprod = torch.sqrt(self.model.alphas_cumprod[t])[:, None, None, None]
+                sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - self.model.alphas_cumprod[t])[:, None, None, None]
+                x_noisy = sqrt_alphas_cumprod * x + sqrt_one_minus_alphas_cumprod * noise
                 
                 # Predict the noise
                 optimiser.zero_grad()
                 predicted_noise = self.model(x_noisy, t)
                 
-                # Calculate  loss
+                # Calculate robust loss
                 if self.loss_type == 'huber':
                     loss = robust_huber_loss(predicted_noise, noise, delta=self.delta)
                 else: # 'lts'
@@ -96,45 +84,3 @@ class RDDPMTrainer(BaseTrainer):
                 
         print("RDDPM Training Complete.")
         self.log_final_metrics()
-
-    @torch.no_grad()
-    def reconstruct_anomalies(self, x_anomalous, corrupt_ratio=0.25):
-        """
-        Inference step for anomaly segmentation.
-        Adds noise up to corrupt_ratio (e.g., 25% of timesteps) and denoises.
-        """
-        self.model.eval()
-        B = x_anomalous.shape[0]
-        max_step = int(self.scheduler.timesteps * corrupt_ratio)
-        
-        # Forward process to max_step
-        t_max = torch.full((B,), max_step - 1, device=self.device, dtype=torch.long)
-        noise = torch.randn_like(x_anomalous)
-        x_t = self.scheduler.add_noise(x_anomalous, t_max, noise)
-        
-        # Iterative backward denoising
-        for i in reversed(range(0, max_step)):
-            t = torch.full((B,), i, device=self.device, dtype=torch.long)
-            predicted_noise = self.model(x_t, t)
-            
-            alpha_t = self.scheduler.alphas[i]
-            alpha_cumprod_t = self.scheduler.alphas_cumprod[i]
-            
-            # Reparameterisation trick for backward step
-            if i > 0:
-                z = torch.randn_like(x_t)
-            else:
-                z = torch.zeros_like(x_t)
-                
-            # Compute x_{t-1}
-            x_t = (1 / torch.sqrt(alpha_t)) * (
-                x_t - ((1 - alpha_t) / torch.sqrt(1 - alpha_cumprod_t)) * predicted_noise
-            )
-            # Simplified variance for the backward step
-            beta_t = self.scheduler.betas[i]
-            x_t = x_t + torch.sqrt(beta_t) * z
-            
-        # The anomaly heatmap is the absolute difference
-        anomaly_heatmap = torch.abs(x_anomalous - x_t)
-        
-        return x_t, anomaly_heatmap
