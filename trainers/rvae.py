@@ -38,7 +38,7 @@ class RVAETrainer(BaseTrainer): # TODO: include references to all relevant paper
                 log_c_norm = - (beta * D / 2.0) * torch.log(torch.tensor(2 * torch.pi, device=self.device))
                 c_norm = torch.exp(log_c_norm)
                 
-                beta_loss = - ((beta + 1) / beta) * c_norm * torch.exp(- (beta / 2.0) * sse)
+                beta_loss = - ((beta + 1) / beta) * (c_norm * torch.exp(- (beta / 2.0) * sse) -1)
                 
                 loss = torch.mean(beta_loss + kl_div)
                 
@@ -73,8 +73,8 @@ class RVAETrainer(BaseTrainer): # TODO: include references to all relevant paper
                 'L1 Loss': f"{avg_l1_loss:.4f}"
             })
             
-            if self.is_notebook:
-                self.plot_metrics(log_scale=True) 
+            # if self.is_notebook:
+            #     self.plot_metrics(log_scale=False) 
                 
         print(f"Training Complete. Final Avg Loss: {avg_loss:.4f}")
         self.log_final_metrics()
