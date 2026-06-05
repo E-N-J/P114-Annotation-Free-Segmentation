@@ -20,7 +20,6 @@ def robust_lts_loss(pred, target, lambda_=0.8):
 class RDDPMTrainer(BaseTrainer):
     def __init__(self, model, loader):
         super().__init__(model, loader)
-        # The external NoiseScheduler is removed. The model now carries its own schedule.
         
     def fit(self, lr=1e-4, epochs=20, loss_type='huber', robust_param=None):
         self.loss_type = loss_type

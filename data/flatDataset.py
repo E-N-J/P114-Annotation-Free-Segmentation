@@ -22,7 +22,7 @@ class FlatDataset(Dataset):
         self.transform = transform
 
         self.samples = sorted(glob.glob(os.path.join(root, "*.*")))
-        self.samples = [f for f in self.samples if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
+        self.samples = [f for f in self.samples if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.pt'))]
         
         if len(self.samples) == 0:
             raise RuntimeError(f"Found 0 files in {root}. Check your path.")
@@ -45,9 +45,13 @@ class FlatDataset(Dataset):
             tuple: (image, target, index) where target is always 0.
         """
         path = self.samples[index]
-        
-        #Load Image Grayscale 'L', color 'RGB'
-        img = Image.open(path).convert('L')
+        if path.lower().endswith('.pt'):
+            img = torch.load(path)
+            if img.dim() == 2:
+                img = img.unsqueeze(0)
+        else:
+            #Load Image Grayscale 'L', color 'RGB'
+            img = Image.open(path).convert('L')
         
         if self.transform is not None:
             img = self.transform(img)
