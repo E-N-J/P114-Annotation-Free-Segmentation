@@ -10,8 +10,6 @@ class RDATrainer(BaseTrainer):
     """
     def __init__(self, model, loader):
         super().__init__(model, loader)
-        self.criterion = nn.MSELoss()
-        
         # Data-dependent initializations
         num_samples = len(self.loader.dataset)
         sample_img, _, _ = self.loader.dataset[0]
@@ -64,7 +62,7 @@ class RDATrainer(BaseTrainer):
                     optimiser.zero_grad()
                     L_D_output = self.model(L_D)
                     
-                    ae_loss = self.criterion(L_D_output, L_D)
+                    ae_loss = torch.linalg.vector_norm(L_D_output - L_D, ord=2, dim=(1,2,3)).mean()
                     ae_loss.backward()
                     optimiser.step()
                     
