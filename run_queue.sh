@@ -3,7 +3,7 @@
 # Force the terminal to use the directory where this script is saved
 cd "$(dirname "$0")" || exit
 
-source .venv/bin/activate
+# source .venv/bin/activate
 
 echo "=========================================="
 echo "Starting Segmentation Inference Queue..."
@@ -41,4 +41,4 @@ echo "=========================================="
 echo "All experiments have finished successfully!"
 echo "=========================================="
 
-deactivate
+# deactivate
