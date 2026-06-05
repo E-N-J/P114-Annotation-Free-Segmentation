@@ -43,7 +43,7 @@ class CeVAETrainer(BaseTrainer):
                 
         return perturbed_x
 
-    def fit(self, epochs=60, lr=2e-4, lambda_=0.5):
+    def fit(self, epochs=60, lr=2e-4, lambda_=0.5, beta=1):
         """
         Trains the ceVAE model.
         lambda_ balances the VAE objective against the CE objective (default 0.5).
@@ -83,7 +83,7 @@ class CeVAETrainer(BaseTrainer):
                 ssim_ce_val = ssim(x, recon_x_ce, data_range=1.0, size_average=True)
                 rec_ce = (1 - ssim_ce_val) * (x.shape[1] * x.shape[2] * x.shape[3])
                 
-                loss = (1 - lambda_) * (kl_loss + rec_vae) + (lambda_ * rec_ce)
+                loss = (1 - lambda_) * ((beta * kl_loss) + rec_vae) + (lambda_ * rec_ce)
                 
                 loss.backward()
                 optimiser.step()
