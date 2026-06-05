@@ -62,11 +62,11 @@ def main():
     PARAM = args.param
 
     BATCH_SIZE = {
-        "ceVAE": 64,
-        "RVAE": 128,
+        "ceVAE": 256,#64,
+        "RVAE": 512,#128,
         "RDA": 512,
         "RDDPM": 4,
-        "Opus": 64,
+        "Opus": 256,#64
     }
     
     MODEL_ARGS = {
@@ -83,15 +83,15 @@ def main():
         "RVAE": {'epochs': 20, 'lr': 2e-3, "beta": 5e-4},
         "RDA": {'lr': 1.5e-4, 'lambda_': (1.0 / torch.sqrt(torch.tensor(DIMS[0])))*1, 'outer_epochs': 10, 'inner_epochs': 10},
         "RDDPM": {"lr": 2e-4, "epochs": 10, "loss_type": "huber", "robust_param": 0.1},
-        "Opus": {'epochs': 60, 'lr': 2e-4, "lambda_ce": 0.85, "lambda_": 1.0/torch.sqrt(torch.tensor(DIMS[0]))}, ####tune
+        "Opus": {'outer_epochs': 6, 'inner_epochs': 10, 'lr': 2e-4, "lambda_ce": 0.85, "lambda_": 1.0/torch.sqrt(torch.tensor(DIMS[0]))}, ####tune
     }
 
     print(f"--- Starting run for Model: {MODEL} | Param: {PARAM} | Range: {args.start} to {args.end} (Step: {args.step}) ---")
     print(f"Using device: {DEVICE}\n")
     print(torch.version.cuda)
 
-    auroc = BinaryAUROC()
-    auprc = BinaryAveragePrecision()
+    auroc_metric = BinaryAUROC()
+    auprc_metric = BinaryAveragePrecision()
 
     dice_results = {}
     auroc_results = {}
@@ -182,19 +182,19 @@ def main():
 
                 y_scores = torch.as_tensor(S).flatten().abs()
 
-                auroc.update(y_scores, y_true)
-                auroc = auroc.compute().item() 
+                auroc_metric.update(y_scores, y_true)
+                auroc = auroc_metric.compute().item() 
 
                 print(f"AUROC for {name}: {auroc:.4f}")
                 auroc_results[intensity] = auroc
-                auroc.reset()
+                auroc_metric.reset()
 
-                auprc.update(y_scores, y_true)
-                auprc = auprc.compute().item()
+                auprc_metric.update(y_scores, y_true)
+                auprc = auprc_metric.compute().item()
 
                 print(f"Average Precision for {name}: {auprc:.4f}")
                 auprc_results[intensity] = auprc
-                auprc.reset()
+                auprc_metric.reset()
 
         del model_results
         del truth
