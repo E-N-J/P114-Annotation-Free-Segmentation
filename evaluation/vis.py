@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from utils import get_environment
+from .utils import get_environment
 from matplotlib.widgets import Button as mplButton
 
 try:
