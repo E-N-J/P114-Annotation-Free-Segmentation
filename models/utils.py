@@ -58,7 +58,7 @@ class AddCoordinates(object):
         return image
 
 
-class CoordConv(nn.Module): # TODO: add as a depemdency from the original project repo
+class CoordConv(nn.Module):
     r"""2D Convolution Module Using Extra Coordinate Information"""
     def __init__(self, in_channels, out_channels, kernel_size,
                  stride=1, padding=0, dilation=1, groups=1, bias=True,

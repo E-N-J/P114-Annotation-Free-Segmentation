@@ -9,9 +9,6 @@ from torchvision.utils import save_image
 from torchvision.io import read_image, ImageReadMode
 from tqdm import tqdm
 from .flatDataset import FlatDataset
-
-# TODO: data aug and saving is slow. consider gpu for concat and parallel disk 
-# what to do when there is no ground truth? currently just augment the train image and skip gc
 class Augmentor:
     def __init__(self, source_root, rotation=0, tps=0, elastic=0, dense_noise=0, device='cuda'):
         """

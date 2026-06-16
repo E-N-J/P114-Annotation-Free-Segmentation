@@ -13,7 +13,7 @@ The repository contains several model families for anomaly detection via robust 
 | ceVAE | Context-encoding variational autoencoder | A fully convolutional VAE with coordinate convolutions and attribution-based anomaly generation. Training is supported via both standard stochastic methods and context-encoding techniques. |
 | RVAE | Robust variational autoencoder | A convolutional VAE that reconstructs images from a compact latent space  using Beta Divergence. |
 | RDDPM | Denoising diffusion model | A lightweight diffusion-based model that corrupts and iteratively denoises inputs to produce reconstructions and anomaly maps. |
-| **R&#8209;ceVAE** | Context-encoding variational autoencoder | A novel combination of the ceVAE base architecture and the RDA's ADMM trainng loop. |
+| **R&#8209;ceVAE** | Context-encoding variational autoencoder | A novel combination of the ceVAE base architecture and the RDA's ADMM training loop. |
 
 ## Attribution And Credits
 

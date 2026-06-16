@@ -63,7 +63,6 @@ class FlatDataset(Dataset):
     def visualise(self, start_idx=0, num_images=16, columns=4, cmap='gray'):
         """
         Visualizes a grid of images from the current dataset.
-        Copied and adapted from FilteredDataset.
         """
         if len(self) == 0:
             print("Dataset is empty.")

@@ -1,7 +1,7 @@
 import torch
 import torch.optim as optim
 from trainers.base import BaseTrainer
-class RVAETrainer(BaseTrainer): # TODO: include references to all relevant papers 
+class RVAETrainer(BaseTrainer):
     def __init__(self, model, loader):
         super().__init__(model, loader)
 
