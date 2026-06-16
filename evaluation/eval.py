@@ -6,7 +6,25 @@ from .utils import save_rpca_results
 from contextlib import contextmanager
 
 def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=False, target_size=None, exact=False):
-    """Handles the RPCA decomposition, resizing on the GPU where possible."""
+    """
+    Load or compute the RPCA decomposition for a batch of images.
+
+    Args:
+        X_input (torch.Tensor): Input batch shaped as (B, C, H, W) on CPU or GPU.
+        rpca_model: RPCA model instance used to compute the low-rank and sparse terms.
+        results_root (str): Directory used to cache RPCA outputs on disk.
+        force_recompute (bool): If True, ignore any cached RPCA result.
+        target_size (tuple or None): Optional output size for interpolation. If None,
+            the original resolution is preserved.
+        exact (bool): If True, use the exact ALM solver instead of iALM.
+
+    Returns:
+        tuple: (X_input, L_rpca, S_rpca) as CPU tensors.
+
+    Notes:
+        Cached results are reused when the batch size matches. If the cache does not
+        contain the original input tensor, the function falls back to the current input.
+    """
     
     try:
         device = next(rpca_model.parameters()).device
@@ -58,7 +76,7 @@ def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=Fa
 
 @contextmanager
 def inference_generator(model):
-    """A lightweight context manager to standardise the API for non-ceVAE models."""
+    """Yield a batch inference function for models that only return reconstructions."""
     def process_batch(batch_x):
         with torch.no_grad():
             output = model(batch_x)
@@ -69,7 +87,18 @@ def inference_generator(model):
     yield process_batch
 
 def run_deep_models_inference(X_input, models_dict, target_size=None, batch_size=128):
-    """Runs inference for deep learning models using batching."""
+    """
+    Run batched inference for every model in `models_dict`.
+
+    Args:
+        X_input (torch.Tensor): Input batch shaped as (B, C, H, W).
+        models_dict (dict): Mapping from model name to model instance.
+        target_size (tuple or None): Optional spatial size to interpolate outputs to.
+        batch_size (int): Inference batch size.
+
+    Returns:
+        dict: Mapping from model name to [L, S] tensors on CPU.
+    """
     print("Running Deep Models Inference...")
     model_results = {}
     n_samples = X_input.size(0)
@@ -112,8 +141,7 @@ def run_deep_models_inference(X_input, models_dict, target_size=None, batch_size
 
 def calculate_dice(truth, S, threshold=0.05):
     """
-    Calculates the Dice Similarity Coefficient between ground truth and predicted sparse anomalies.
-    Assumes both inputs are already on the CPU.
+    Compute Dice overlap between binary ground truth and thresholded anomaly scores.
     """
     y_true = torch.as_tensor(truth).flatten()
     y_scores = torch.as_tensor(S).flatten()
@@ -134,8 +162,9 @@ def calculate_dice(truth, S, threshold=0.05):
 
 def find_optimal_dice(truth, S, bins=1000):
     """
-    Finds the optimal Dice threshold using highly efficient histogram binning.
-    Evaluates 1000 threshold steps in milliseconds.
+    Search for the Dice-maximising threshold using histogram binning.
+
+    This is a fast approximation that evaluates `bins` candidate thresholds.
     """
     
     y_true = torch.as_tensor(truth).flatten().bool()
@@ -171,6 +200,7 @@ def find_optimal_dice(truth, S, bins=1000):
     return best_threshold, best_dice
 
 def calculate_auroc(truth, S):
+    """Compute AUROC from flattened truth labels and anomaly scores."""
     y_true = torch.as_tensor(truth).flatten() # torchmetrics prefers ints for labels
     y_scores = torch.as_tensor(S).flatten().abs()
 
@@ -181,6 +211,7 @@ def calculate_auroc(truth, S):
     return metric.compute().item()
 
 def calculate_auprc(truth, S):
+    """Compute average precision from flattened truth labels and anomaly scores."""
     y_true = torch.as_tensor(truth).flatten() 
     y_scores = torch.as_tensor(S).flatten().abs()
 

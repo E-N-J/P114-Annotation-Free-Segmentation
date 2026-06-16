@@ -9,7 +9,15 @@ from torchvision.utils import save_image
 from torchvision.io import read_image, ImageReadMode
 from tqdm import tqdm
 from .flatDataset import FlatDataset
+
 class Augmentor:
+    """
+    Build an augmented flat-folder dataset and expose training/ground-truth loaders.
+
+    The class can either return the original dataset unchanged or materialize a
+    transformed dataset on disk using geometric transforms and optional dense noise.
+    """
+
     def __init__(self, source_root, rotation=0, tps=0, elastic=0, dense_noise=0, device='cuda'):
         """
         Args:
@@ -64,7 +72,14 @@ class Augmentor:
 
     def prepare(self, force_rebuild=False, batch_size=128):
         """
-        Runs the augmentation pipeline in batches and saves images to disk.
+        Materialize the augmented dataset on disk.
+
+        Args:
+            force_rebuild (bool): If True, regenerate even when the destination exists.
+            batch_size (int): Number of images processed per augmentation batch.
+
+        Returns:
+            None. Creates or reuses `self.dest_root`.
         """
         if self.is_identity:
             print(f"Identity augmentation requested. Using raw source: {self.source_root}")
@@ -142,10 +157,13 @@ class Augmentor:
 
     def get_dataset(self, **dataset_kwargs):
         """
-        Generates data if needed, then returns the FlatFolderDataset.
+        Return a FlatDataset rooted at the augmented training directory.
         
         Args:
-            **dataset_kwargs: Arguments meant for FlatDataset (e.g. transform)
+            **dataset_kwargs: Keyword arguments forwarded to `FlatDataset` (e.g. transforms).
+
+        Returns:
+            FlatDataset: The training dataset after ensuring augmentation exists.
         """
         # Ensure data exists
         self.prepare()
@@ -160,7 +178,15 @@ class Augmentor:
         return FlatDataset(root=os.path.join(self.dest_root, self.train_folder_name), **dataset_kwargs)
 
     def get_gt_images(self, num_images=None):
-        # Returns the ground truth images as a tensor, if they exist
+        """
+        Load augmented ground-truth images as a tensor when they exist.
+
+        Args:
+            num_images (int or None): Optional limit on the number of ground-truth images to load.
+
+        Returns:
+            torch.Tensor or None: Stacked ground-truth masks, or None if no ground-truth folder exists.
+        """
         gt_folder = os.path.join(self.dest_root, self.gc_folder_name)
         if not os.path.exists(gt_folder):
             print(f"No ground truth folder found at {gt_folder}. Returning None.")
@@ -180,8 +206,9 @@ class Augmentor:
 
 def create_tps_transform(strength=0.5, grid_size=5, device='cuda'):
     """
-    Precomputes the TPS grid once and returns a batched augmentation function
-    that randomly bulges outwards or pinches inwards from a randomised centre.
+    Create a batched thin-plate-spline augmentation callable.
+
+    The returned function expects a tensor shaped as (B, C, H, W) on the given device.
     """
     coords = torch.linspace(-1, 1, grid_size, device=device)
     grid_y, grid_x = torch.meshgrid(coords, coords, indexing='ij')
@@ -227,7 +254,7 @@ def create_tps_transform(strength=0.5, grid_size=5, device='cuda'):
     return tps_transform
 class RandomRicianNoise(nn.Module):
     """
-    Applies Rician noise to a PyTorch tensor.
+    Apply Rician noise to a tensor by perturbing real and imaginary components.
     """
     def __init__(self, std: float):
         super().__init__()

@@ -10,8 +10,17 @@ except ImportError:
     
 def visualise_results(X_input, L_rpca, S_rpca, model_results, truth=None):
     """
-    Visualises the original, RPCA decomposed, and deep model decomposed images.
-    Auto-detects environment to serve either IPyWidgets (Notebook) or Matplotlib Widgets (Script).
+    Visualise original images, RPCA outputs, and model outputs side by side.
+
+    Notebook environments use `ipywidgets` controls when available. Script or
+    terminal environments fall back to Matplotlib button widgets.
+
+    Args:
+        X_input (torch.Tensor): Input batch shaped as (B, C, H, W).
+        L_rpca (torch.Tensor): RPCA low-rank reconstructions.
+        S_rpca (torch.Tensor): RPCA sparse anomaly maps.
+        model_results (dict): Mapping from model name to `(L, S)` tensors.
+        truth (torch.Tensor or None): Optional ground-truth anomaly masks.
     """
     batch_size = X_input.shape[0]
     env = get_environment()
@@ -165,7 +174,6 @@ def visualise_results(X_input, L_rpca, S_rpca, model_results, truth=None):
         img_handles = {}
 
         def init_plot(idx):
-            """Draws the initial layout and captures the image objects."""
             # Setting vmin=0 and vmax=1 stops the screen from flickering brightness 
             # if one image happens to be slightly darker than the previous one.
             img_handles['input'] = axs[0,0].imshow(X_input[idx].squeeze(), cmap='gray', vmin=0, vmax=1)
@@ -196,7 +204,6 @@ def visualise_results(X_input, L_rpca, S_rpca, model_results, truth=None):
 
         # 2. The Lightning-Fast Update Function
         def update_script_view(idx):
-            """Injects new pixel data into the existing image objects."""
             # .set_data() is virtually instantaneous
             img_handles['input'].set_data(X_input[idx].squeeze())
             axs[0,0].set_title(f"Input [{idx}]") 

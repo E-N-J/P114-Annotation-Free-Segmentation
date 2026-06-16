@@ -4,7 +4,8 @@ from PIL import Image
 
 class UniversalNormalise(object):
     """
-    Acts as a smart replacement for transforms.ToTensor().
+    Smart replacement for `transforms.ToTensor()` that also handles normalized tensors.
+
     - If fed a PIL Image, it scales standard pixels (0-255) to [0.0, 1.0].
     - If fed a z-scored Tensor, it applies windowing (-4 to +4) and maps to [0.0, 1.0].
     """

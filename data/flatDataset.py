@@ -8,8 +8,10 @@ import numpy as np
 
 class FlatDataset(Dataset):
     """
-    1. Loads images from a flat directory (no class subfolders required).
-    2. Returns (image, label, LOCAL_INDEX) for ADMM compatibility.
+    Dataset for flat image folders with optional transforms.
+
+    Returns `(image, label, index)` tuples so downstream trainers can
+    track per-sample updates while keeping the label fixed at zero.
     """
     def __init__(self, root, transform=None, target_class=None):
         """
@@ -39,10 +41,13 @@ class FlatDataset(Dataset):
 
     def __getitem__(self, index):
         """
+        Load one sample from the flat directory.
+
         Args:
-            index (int): Index
+            index (int): Local sample index.
+
         Returns:
-            tuple: (image, target, index) where target is always 0.
+            tuple: `(image, 0, index)` where the label is always zero.
         """
         path = self.samples[index]
         if path.lower().endswith('.pt'):
