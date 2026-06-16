@@ -98,84 +98,15 @@ def visualise_results(X_input, L_rpca, S_rpca, model_results, truth=None):
         
         ui = widgets.HBox([btn_prev, btn_next])
         display(widgets.VBox([ui, out]))
-        
-    # else:
-    #     fig = generate_plot(0)
-        
-    #     def update_script_view(idx):
-    #         ax_list = fig.axes
-            
-    #         for a in ax_list:
-    #             if a not in [ax_prev, ax_next]:
-    #                 a.clear()
-            
-    #         axs = fig.subplots(2 + len(model_results), 3) if not fig.axes else fig.axes
-
-    #         fig.clf() 
-            
-    #         gs = fig.add_gridspec(2 + len(model_results), 3)
-    #         axs = gs.subplots()
-            
-    #         def show_img_s(ax_idx, img, title):
-    #             ax_idx.imshow(img.squeeze(), cmap='gray')
-    #             ax_idx.set_title(title)
-    #             ax_idx.axis('off')
-
-    #         show_img_s(axs[0,0], X_input[idx], f"Input [{idx}]")
-    #         axs[0,1].axis('off'); axs[0,2].axis('off')
-
-    #         show_img_s(axs[1,0], L_rpca[idx], "RPCA L")
-    #         show_img_s(axs[1,1], abs(S_rpca[idx]), "RPCA S")
-    #         axs[1,2].axis('off')
-
-    #         for i, (name, (L, S)) in enumerate(model_results.items()):
-    #             r = 2 + i
-    #             show_img_s(axs[r,0], L[idx], f"{name} L")
-    #             show_img_s(axs[r,1], abs(S[idx]), f"{name} S")
-    #             axs[r,2].axis('off')
-            
-    #         add_buttons()
-    #         fig.canvas.draw_idle()
-
-    #     ax_prev = None
-    #     ax_next = None
-    #     b_prev = None
-    #     b_next = None
-
-    #     def next_click(event):
-    #         state['idx'] = (state['idx'] + 1) % batch_size
-    #         update_script_view(state['idx'])
-
-    #     def prev_click(event):
-    #         state['idx'] = (state['idx'] - 1) % batch_size
-    #         update_script_view(state['idx'])
-
-    #     def add_buttons():
-    #         nonlocal ax_prev, ax_next, b_prev, b_next
-    #         ax_prev = fig.add_axes([0.3, 0.02, 0.1, 0.05])
-    #         ax_next = fig.add_axes([0.6, 0.02, 0.1, 0.05])
-    #         b_prev = mplButton(ax_prev, 'Previous')
-    #         b_next = mplButton(ax_next, 'Next')
-    #         b_prev.on_clicked(prev_click)
-    #         b_next.on_clicked(next_click)
-
-    #     add_buttons()
-    #     plt.show()
-        
-    # New faster version???
-    #     
+          
     else:
-        # 1. Setup the figure and grid exactly ONCE
         fig = plt.figure(figsize=(10, 2 * (2 + len(model_results))))
         gs = fig.add_gridspec(2 + len(model_results), 3)
         axs = gs.subplots()
         
-        # We will store the live image handles in this dictionary
         img_handles = {}
 
         def init_plot(idx):
-            # Setting vmin=0 and vmax=1 stops the screen from flickering brightness 
-            # if one image happens to be slightly darker than the previous one.
             img_handles['input'] = axs[0,0].imshow(X_input[idx].squeeze(), cmap='gray', vmin=0, vmax=1)
             axs[0,0].set_title(f"Input [{idx}]")
             axs[0,1].axis('off')
@@ -202,9 +133,7 @@ def visualise_results(X_input, L_rpca, S_rpca, model_results, truth=None):
             for ax in axs.flat:
                 ax.axis('off')
 
-        # 2. The Lightning-Fast Update Function
         def update_script_view(idx):
-            # .set_data() is virtually instantaneous
             img_handles['input'].set_data(X_input[idx].squeeze())
             axs[0,0].set_title(f"Input [{idx}]") 
             
@@ -221,8 +150,6 @@ def visualise_results(X_input, L_rpca, S_rpca, model_results, truth=None):
         # Build the initial layout
         init_plot(0)
 
-        # 3. Setup Buttons ONCE
-        # We place them at the very bottom of the figure using absolute coordinates
         plt.subplots_adjust(bottom=0.1) 
         ax_prev = fig.add_axes([0.3, 0.02, 0.1, 0.05])
         ax_next = fig.add_axes([0.6, 0.02, 0.1, 0.05])
