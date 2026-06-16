@@ -31,7 +31,12 @@ def get_rpca_decomposition(X_input, rpca_model, results_root, force_recompute=Fa
         L_rpca = rpca_results['L']
         S_rpca = rpca_results['S']
         X_cache = rpca_results['X'] if 'X' in rpca_results else None
-        X_input = X_cache if X_cache is not None else F.interpolate(X_input, size=target_size).cpu() #TODO: can crash if no target size is provided
+        if X_cache is not None:
+            X_input = X_cache
+        elif target_size is not None:
+            X_input = F.interpolate(X_input, size=target_size).cpu()
+        else:
+            X_input = X_input.cpu()
     else:
         print("Running RPCA Inference...")
         X_gpu = X_input.to(device)
