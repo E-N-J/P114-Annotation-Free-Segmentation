@@ -2,13 +2,28 @@ import torch
 import torch.optim as optim
 from trainers.base import BaseTrainer
 class RVAETrainer(BaseTrainer):
+    """
+    Trainer for the Robust Variational Autoencoder (RVAE).
+
+    Based on Akrami, Joshi, Li, Aydore, and Leahy
+    ("A Robust Variational Autoencoder Using Beta Divergence").
+    Trains using a beta-divergence based reconstruction term combined with
+    the VAE KL divergence.
+    """
     def __init__(self, model, loader):
         super().__init__(model, loader)
 
     def fit(self, epochs=60, lr=1e-3, beta=0.005):
         """
-        Trains the RVAE model using beta-divergence loss.
-        beta controls the robustness to outliers.
+        Train the RVAE model using a beta-divergence reconstruction loss.
+
+        Args:
+            epochs (int): Number of training epochs. Default 60.
+            lr (float): Learning rate for the optimizer. Default 1e-3.
+            beta (float): Beta divergence parameter controlling robustness to outliers. Default 0.005.
+
+        Returns:
+            None. Updates model weights in-place and records metrics.
         """
         print(f"\nTraining RVAE Model...")
         

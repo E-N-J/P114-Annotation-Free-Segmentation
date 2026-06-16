@@ -6,6 +6,13 @@ from .utils import shrinkage_l1, shrinkage_l21
 from pytorch_msssim import ssim
 
 class OpusTrainer(BaseTrainer):
+    """
+    ADMM-style trainer that combines ceVAE context-encoding with
+    RDA-style alternating minimization (R-ceVAE).
+
+    Builds on Zimmerer et al. (ceVAE) and Zhou & Paffenroth (RDA) to train a
+    context-encoding VAE within an ADMM loop that updates sparse components.
+    """
     def __init__(self, model, loader):
         super().__init__(model, loader)
         # Data-dependent initializations
@@ -30,6 +37,10 @@ class OpusTrainer(BaseTrainer):
         self.total_pixels = num_samples * self.pixels_per_img
     
     def _apply_ce_noise(self, x):
+        """
+        Applies Context-Encoding noise by masking 1-3 random spatial patches
+        and filling them with values sampled from the batch's data distribution.
+        """
         perturbed_x = x.clone()
         b, c, h, w = x.shape
         
@@ -58,6 +69,21 @@ class OpusTrainer(BaseTrainer):
         return perturbed_x
 
     def fit(self, lr=1e-3, lambda_= 1.0 / torch.sqrt(torch.tensor(128)), lambda_ce=0.5, outer_epochs=20, inner_epochs=50, tol=1e-7, norm_type='l1'):
+        """
+        Train the ceVAE within an ADMM-style alternating minimization loop.
+
+        Args:
+            lr (float): Learning rate for the autoencoder optimizer. Default 1e-3.
+            lambda_ (float): Regularisation weight used in the sparse proximal step. Default 1/sqrt(128).
+            lambda_ce (float): Weight balancing the CE objective inside the inner VAE updates. Default 0.5.
+            outer_epochs (int): Number of outer ADMM iterations. Default 20.
+            inner_epochs (int): Number of training epochs for the autoencoder per outer iteration. Default 50.
+            tol (float): Convergence tolerance for ADMM stopping criteria. Default 1e-7.
+            norm_type (str): Norm choice for sparsity ('l1' or 'l21'). Default 'l1'.
+
+        Returns:
+            None. Trains model in-place, maintains S/L memories, and logs metrics.
+        """
         print(f"\nTraining with ce-ADMM Algorithm ({norm_type} norm)...")
         
         optimiser = optim.Adam(self.model.parameters(), lr=lr)

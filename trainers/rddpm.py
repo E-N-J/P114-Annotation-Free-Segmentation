@@ -18,10 +18,29 @@ def robust_lts_loss(pred, target, lambda_=0.8):
     return trimmed_loss.mean()
 
 class RDDPMTrainer(BaseTrainer):
+    """
+    Trainer for the Robust Denoising Diffusion Probabilistic Model.
+
+    Based on Moradi and Paynabar ("RDDPM: Robust Denoising Diffusion
+    Probabilistic Model for Unsupervised Anomaly Segmentation").
+    Supports robust loss options such as Huber and trimmed-sample (LTS).
+    """
     def __init__(self, model, loader):
         super().__init__(model, loader)
         
     def fit(self, lr=1e-4, epochs=20, loss_type='huber', robust_param=None):
+        """
+        Train the RDDPM model using a robust loss.
+
+        Args:
+            lr (float): Learning rate for the optimizer. Default 1e-4.
+            epochs (int): Number of training epochs. Default 20.
+            loss_type (str): Robust loss to use ('huber' or 'lts'). Default 'huber'.
+            robust_param (float or None): Parameter for the chosen robust loss (e.g., delta for Huber or lambda for LTS).
+
+        Returns:
+            None. Trains the model in-place and stores epoch losses.
+        """
         self.loss_type = loss_type
         if self.loss_type == 'huber':
             self.delta = robust_param if robust_param is not None else 0.2

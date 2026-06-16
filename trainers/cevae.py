@@ -6,6 +6,10 @@ from pytorch_msssim import ssim
 class CeVAETrainer(BaseTrainer):
     """
     Trainer for the Context-encoding Variational Autoencoder (ceVAE).
+
+    Based on Zimmerer, Kohl, Petersen, Isensee, and Maier-Hein
+    ("Context-encoding Variational Autoencoder for Unsupervised Anomaly
+    Detection").
     Minimises the combined VAE and Context-Encoding (CE) objective.
     """
     def __init__(self, model, loader):
@@ -45,8 +49,16 @@ class CeVAETrainer(BaseTrainer):
 
     def fit(self, epochs=60, lr=2e-4, lambda_=0.5, beta=1):
         """
-        Trains the ceVAE model.
-        lambda_ balances the VAE objective against the CE objective (default 0.5).
+        Train the ceVAE model.
+
+        Args:
+            epochs (int): Number of training epochs. Default 60.
+            lr (float): Learning rate for the optimizer. Default 2e-4.
+            lambda_ (float): Weight balancing the VAE and Context-Encoding objectives. Default 0.5.
+            beta (float): Scaling factor applied to the KL term. Default 1.
+
+        Returns:
+            None. Updates model weights in-place and records metrics.
         """
         print(f"\nTraining ceVAE Model...")
         

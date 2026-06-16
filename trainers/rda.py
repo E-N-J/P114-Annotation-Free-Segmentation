@@ -6,7 +6,11 @@ from .utils import shrinkage_l1, shrinkage_l21
 
 class RDATrainer(BaseTrainer):
     """
-    Trainer for Robust Deep Autoencoders using ADMM-like alternating minimization.
+    Trainer for Robust Deep Autoencoder.
+    Based on Zhou and Paffenroth ("Anomaly Detection with Robust Deep
+    Autoencoders").
+    Implements Alternating Direction Method of Multipliers updates for the autoencoder (L) and sparse
+    component (S) using proximal/shrinkage operators.
     """
     def __init__(self, model, loader):
         super().__init__(model, loader)
@@ -33,8 +37,18 @@ class RDATrainer(BaseTrainer):
 
     def fit(self, lr=1e-3, lambda_=1.0, outer_epochs=20, inner_epochs=50, tol=1e-7, norm_type='l1'):
         """
-        Implementation of ADMM for an RDA.
-        Decomposes input data X into Low-Rank L and Sparse S components.
+        Train the Robust Deep Autoencoder using an ADMM-like alternating minimization.
+
+        Args:
+            lr (float): Learning rate for the autoencoder optimizer. Default 1e-3.
+            lambda_ (float): Regularisation weight for the sparsity proximal step. Default 1.0.
+            outer_epochs (int): Number of outer ADMM iterations. Default 20.
+            inner_epochs (int): Number of epochs to train the autoencoder per outer step. Default 50.
+            tol (float): Convergence tolerance for the ADMM stopping criteria. Default 1e-7.
+            norm_type (str): Type of sparsity norm ('l1' or 'l21'). Default 'l1'.
+
+        Returns:
+            None. Updates model parameters and internal S/L memory structures; records training histories.
         """
         print(f"\nTraining with ADMM Algorithm ({norm_type} norm)...")
         
@@ -45,7 +59,7 @@ class RDATrainer(BaseTrainer):
         
         for out_step in outer_pbar:
             
-            # --- Phase 1: Train Autoencoder (Update L) ---
+            # Train Autoencoder (Update L)
             inner_pbar = self.tqdm(range(inner_epochs), desc=f"Step {out_step+1}: Training AE", leave=False)
             for in_epoch in inner_pbar:
                 total_ae_loss = 0
@@ -53,12 +67,12 @@ class RDATrainer(BaseTrainer):
                     x = x.to(self.device)
                     indices = indices.to(self.device)
                     
-                    # [Step 1]: Remove S from X
+                    # Remove S from X
                     with torch.no_grad():
                         S_batch = self.S_memory[indices]
                         L_D = x - S_batch
                     
-                    # 2. Train Network to reconstruct X - S
+                    # Train Network to reconstruct X - S
                     optimiser.zero_grad()
                     L_D_output = self.model(L_D)
                     
@@ -78,7 +92,7 @@ class RDATrainer(BaseTrainer):
                 if self.is_notebook:
                     self.plot_metrics(log_scale=True)
             
-            # --- Phase 2: Update S Matrix ---
+            # Update S Matrix
             constraint_error = 0.0
             convergence_gap = 0.0
             total_sparsity_sum = 0.0 
@@ -92,13 +106,13 @@ class RDATrainer(BaseTrainer):
                     S_old = self.S_memory[indices]
                     L_D_input = x - S_old
                     
-                    # [Step 3]: L_D = D(E(L_D))
+                    # L_D = D(E(L_D))
                     L_D_output = self.model(L_D_input)
                     
-                    # [Step 4]: S_prox_input = X - L_D
+                    # S_prox_input = X - L_D
                     S_prox_input = x - L_D_output
                     
-                    # [Step 5]: Optimize S
+                    # Optimize S
                     if norm_type == 'l1':
                         S_new = shrinkage_l1(S_prox_input, lambda_)
                         sparsity_sum = torch.sum(torch.abs(S_new))
@@ -111,11 +125,11 @@ class RDATrainer(BaseTrainer):
                     
                     self.S_memory[indices] = S_new
                     
-                    # [Step 7 Prep]: Constraint c1 (Reconstruction Error)
+                    # Constraint c1 (Reconstruction Error)
                     x_rec_loss = torch.sum((S_prox_input - S_new) ** 2)
                     constraint_error += x_rec_loss.item()
                     
-                    # [Step 7 Prep]: Convergence c2 (Change in L+S)
+                    # Convergence c2 (Change in L+S)
                     LS_prev = self.LS_memory[indices]
                     LS_new = L_D_output + S_new
                     self.LS_memory[indices] = LS_new
@@ -125,7 +139,7 @@ class RDATrainer(BaseTrainer):
                     total_sparsity_sum += sparsity_sum.item()
                     total_L_rec_loss += torch.sum((L_D_input - L_D_output) ** 2).item()
             
-            # [Step 6]: Convergence Checks
+            # Convergence Checks
             c1 = (constraint_error ** 0.5) / (self.X_frobenius + 1e-9)
             c2 = (convergence_gap ** 0.5) / (self.X_frobenius + 1e-9)
             
