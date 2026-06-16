@@ -4,8 +4,10 @@ from tqdm import tqdm
 
 class RobustPCA(nn.Module):
     """
-    Implements Robust PCA using the Augmented Lagrange Multiplier method
-    described in Candes et al., Section 5.
+    RPCA: Robust Principal Component Analysis.
+
+    Based on Candès, Li, Ma, and Wright ("Robust Principal Component
+    Analysis?").
     """
     def __init__(self, lambda_=None, mu=None, tol=1.06e-6, max_iter=100):
         super().__init__()
@@ -27,9 +29,6 @@ class RobustPCA(nn.Module):
         return L
 
     def decompose_ialm(self, x):
-        """
-        Input x: (Batch, Channels, Height, Width) or (Batch, Flattened)
-        """
         original_shape = x.shape
 
         flat_x = x.view(x.size(0), -1)
@@ -57,22 +56,22 @@ class RobustPCA(nn.Module):
         
         for k in loop:
             
-            # [Step 1]: Update L (Low Rank) using Singular Value Thresholding
+            # Update L (Low Rank) using Singular Value Thresholding
             temp_L = x_mat - S + (1/self.mu) * Y
             u, s, v = torch.linalg.svd(temp_L, full_matrices=False)
             s_thresh = self.soft_threshold(s, 1/self.mu)
             L = u @ torch.diag_embed(s_thresh) @ v
             
-            # [Step 2]: Update S (Sparse) using Shrinkage 
+            # Update S (Sparse) using Shrinkage 
             temp_S = x_mat - L + (1/self.mu) * Y
             S = self.soft_threshold(temp_S, self.lambda_ / self.mu)
             
-            # [Step 3]: Update Y (Lagrange Multiplier)
+            # Update Y (Lagrange Multiplier)
             residual = x_mat - L - S
             Y = Y + self.mu * residual
             self.mu = min(self.mu * rho, mu_bar)
             
-            # [Step 4]: Convergence check
+            # Convergence check
             res_norm = torch.norm(residual, 'fro')
             error = res_norm / x_mat_norm
             min_error = min(min_error, error)

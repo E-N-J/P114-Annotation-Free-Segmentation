@@ -5,7 +5,8 @@ import math
 from contextlib import contextmanager
 
 class SinusoidalPositionEmbeddings(nn.Module):
-    """Encodes the discrete time step t into a continuous vector."""
+    """Sinusoidal time-step embedding used by the RDDPM U-Net backbones."""
+
     def __init__(self, dim):
         super().__init__()
         self.dim = dim
@@ -20,7 +21,8 @@ class SinusoidalPositionEmbeddings(nn.Module):
         return embeddings
 
 class ResBlock(nn.Module):
-    """Residual block with time embedding projection."""
+    """Residual block with time embedding projection for RDDPM."""
+
     def __init__(self, in_channels, out_channels, time_emb_dim, dropout=0.1):
         super().__init__()
         self.norm1 = nn.GroupNorm(32, in_channels)
@@ -50,7 +52,8 @@ class ResBlock(nn.Module):
         return h + self.shortcut(x)
 
 class AttentionBlock(nn.Module):
-    """Standard self-attention block used in the ablated U-Net."""
+    """Self-attention block used in the RDDPM U-Net backbones."""
+
     def __init__(self, channels):
         super().__init__()
         self.norm = nn.GroupNorm(32, channels)
@@ -71,7 +74,8 @@ class AttentionBlock(nn.Module):
         return x + self.proj(out)
 
 class LDM_UNet(nn.Module):
-    """The heavy 'ablated UNet' backbone utilised in the Latent Diffusion Models paper."""
+    """Full U-Net backbone used by the RDDPM diffusion model."""
+
     def __init__(self, img_channels=3, base_channels=128, channel_mults=(1, 2, 4, 4), time_emb_dim=512):
         super().__init__()
         
@@ -159,7 +163,7 @@ class LDM_UNet(nn.Module):
 
 class MicroLDM_UNet(nn.Module):
     """
-    A hyper-optimised, lightweight version of the LDM U-Net.
+    Lightweight U-Net backbone used by the RDDPM implementation.
     """
     def __init__(self, img_channels=1, base_channels=32, channel_mults=(1, 2, 4, 4), time_emb_dim=128):
         super().__init__()
@@ -243,8 +247,10 @@ class MicroLDM_UNet(nn.Module):
 
 class RDDPM(nn.Module):
     """
-    Robust Denoising Diffusion Probabilistic Model.
-    Designed for integration with standard context-manager-based anomaly pipelines.
+    RDDPM: Robust Denoising Diffusion Probabilistic Model.
+
+    Based on Moradi and Paynabar
+    ("RDDPM: Robust Denoising Diffusion Probabilistic Model for Unsupervised Anomaly Segmentation").
     """
     def __init__(self, img_channels=1, timesteps=1000, corrupt_ratio=0.25):
         super().__init__()

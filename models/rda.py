@@ -60,6 +60,12 @@ class LinearBottleneck(nn.Module):
         return decoded
 
 class RobustDeepAutoencoder(nn.Module):
+    """
+    Robust Deep Autoencoder.
+
+    Based on Zhou and Paffenroth ("Anomaly Detection with Robust Deep
+    Autoencoders").
+    """
     def __init__(self, input_shape=(128, 128), latent_dim=1024, hidden_dim=1024, dropout=0.0, noise_std=0.0):
         super().__init__()
         

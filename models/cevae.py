@@ -11,7 +11,11 @@ from .utils import CoordConv, CoordConvTranspose, CeVAEInferenceLoss
 
 class ContextEncodingVAE(nn.Module):
     """
-    Strictly Fully Convolutional Context-encoding VAE matching Zimmerer et al. (2019).
+    Context-encoding Variational Autoencoder.
+
+    Based on Zimmerer, Kohl, Petersen, Isensee, and Maier-Hein
+    ("Context-encoding Variational Autoencoder for Unsupervised Anomaly
+    Detection").
     """
     def __init__(self, latent_channels=1024, with_r=True, input_shape=(128, 128)):
         super().__init__()
@@ -68,7 +72,6 @@ class ContextEncodingVAE(nn.Module):
         return mu, logvar
 
     def reparameterise(self, mu, logvar):
-        """Applies the reparameterisation trick to sample from the latent space."""
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mu + eps * std
@@ -78,9 +81,6 @@ class ContextEncodingVAE(nn.Module):
         return self.decoder(h)
 
     def forward(self, x, ce_mode=False):
-        """
-        Forward pass with distinct routing for the Context-Encoding (CE) task.
-        """
         mu, logvar = self.encode(x)
         
         if ce_mode:
@@ -99,8 +99,8 @@ class ContextEncodingVAE(nn.Module):
         nt_samples_batch_size=10,
     ):
         """
-        Context manager that sets up Captum attribution models once, yields a 
-        batch-processing function, and safely tears down memory afterwards.
+        Context manager that sets up Captum attribution models and yields a 
+        batch-processing function.
         """
         
         tmp_model = copy.deepcopy(self)

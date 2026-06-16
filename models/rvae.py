@@ -3,6 +3,12 @@ import torch.nn as nn
 from contextlib import contextmanager
 
 class RobustVAE(nn.Module):
+    """
+    Robust Variational Autoencoder.
+
+    Based on Akrami, Joshi, Li, Aydore, and Leahy ("A Robust Variational
+    Autoencoder Using Beta Divergence").
+    """
     def __init__(self, in_channels=1, latent_dim=128, input_shape=(128, 128)):
         super(RobustVAE, self).__init__()
 
