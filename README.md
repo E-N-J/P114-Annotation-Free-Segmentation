@@ -1,6 +1,6 @@
 # P114-Annotation-Free-Segmentation
 
-This project explores annotation-free tumor detection by framing tumors as anomalies in medical images. It combines robust subspace methods and unsupervised deep learning to separate normal tissue from abnormal regions automatically.
+This project explores techniques for annotation-free tumor detection by framing tumors as anomalies in medical images. It combines robust subspace methods and unsupervised deep learning to separate normal tissue from abnormal regions automatically.
 
 The repository contains several model families for anomaly detection via robust reconstruction-based segmentation. Most of them are implementations of published methods, some with sight adaptations.
 
